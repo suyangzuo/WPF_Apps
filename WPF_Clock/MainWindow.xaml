@@ -1,0 +1,334 @@
+﻿<Window x:Class="WPF_Clock.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:WPF_Clock"
+        mc:Ignorable="d"
+        Title="时钟" Height="600" Width="800" MinWidth="400" MinHeight="530"
+        Background="Transparent" Foreground="#FFFFFF"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None" AllowsTransparency="True">
+    <!-- 配置窗口样式以支持深色主题 -->
+    <Window.Resources>
+        <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#1A1A1A" />
+        <SolidColorBrush x:Key="WindowTextBrush" Color="#FFFFFF" />
+
+        <!-- 窗口按钮基础样式 -->
+        <Style x:Key="WindowButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Border" Background="Transparent" 
+                                HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#555" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#777" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 关闭按钮样式 - 注意：右侧按钮需要特殊处理以不溢出窗口圆角 -->
+        <Style x:Key="CloseButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <!-- 为关闭按钮添加特殊的右侧圆角处理 -->
+                        <Border x:Name="Border" Background="Transparent" 
+                                CornerRadius="0,10,0,0" 
+                                HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#E81123" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 自定义深色主题MenuItem样式 -->
+        <Style x:Key="DarkMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Background" Value="#1A1A1A" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="Border" Background="#1A1A1A" BorderThickness="1" BorderBrush="Transparent"
+                                Height="30">
+                            <Grid>
+                                <ContentPresenter x:Name="HeaderHost" ContentSource="Header" Margin="10,0"
+                                                  VerticalAlignment="Center" />
+                                <Popup x:Name="SubMenuPopup" IsOpen="{TemplateBinding IsSubmenuOpen}"
+                                       Placement="Bottom"
+                                       AllowsTransparency="True" VerticalOffset="5" HorizontalOffset="-2">
+                                    <Border x:Name="SubMenuBorder" Background="#2D2D2D" BorderThickness="1"
+                                            BorderBrush="#2D2D2D">
+                                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#135" />
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#2DB" />
+                                <Setter TargetName="Border" Property="BorderThickness" Value="1" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 自定义深色主题子MenuItem样式（不带勾选框） -->
+        <Style x:Key="DarkSubMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Background" Value="#2D2D2D" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="Border" Background="#2D2D2D" BorderThickness="1" BorderBrush="#444"
+                                Height="30">
+                            <Grid>
+                                <ContentPresenter x:Name="HeaderHost" ContentSource="Header"
+                                                  Margin="20,0" VerticalAlignment="Center" />
+                                <Popup x:Name="SubMenuPopup" IsOpen="{TemplateBinding IsSubmenuOpen}" Placement="Right"
+                                       AllowsTransparency="True">
+                                    <Border x:Name="SubMenuBorder" Background="#2D2D2D" BorderThickness="1"
+                                            BorderBrush="#2D2D2D">
+                                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#345" />
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#4A90E2" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 带勾选框的子MenuItem样式（专用于"显示时钟"） -->
+        <Style x:Key="CheckableSubMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Background" Value="#2D2D2D" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="Border" Background="#2D2D2D" BorderThickness="1" BorderBrush="#444"
+                                Height="30">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <!-- 勾选标记容器 - 始终显示方框 -->
+                                <Border x:Name="CheckMarkBox" Grid.Column="0" Width="14" Height="14"
+                                        BorderBrush="Gray" BorderThickness="1" Background="Transparent"
+                                        VerticalAlignment="Center" Margin="10,0,0,0">
+                                    <!-- 勾选标记 - 只有选中时才显示 -->
+                                    <TextBlock x:Name="CheckMark" Text="✓" Foreground="White"
+                                               FontSize="10" VerticalAlignment="Center" HorizontalAlignment="Center"
+                                               Visibility="Collapsed" />
+                                </Border>
+                                <ContentPresenter x:Name="HeaderHost" Grid.Column="1" ContentSource="Header"
+                                                  Margin="10,0" VerticalAlignment="Center" />
+                                <Popup x:Name="SubMenuPopup" IsOpen="{TemplateBinding IsSubmenuOpen}" Placement="Right"
+                                       AllowsTransparency="True">
+                                    <Border x:Name="SubMenuBorder" Background="#2D2D2D" BorderThickness="1"
+                                            BorderBrush="#2D2D2D">
+                                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#345" />
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#4A90E2" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- 配置WindowChrome以支持拖动和调整大小 -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome
+            CaptionHeight="0"
+            GlassFrameThickness="0"
+            CornerRadius="10"
+            ResizeBorderThickness="5"
+            UseAeroCaptionButtons="False"
+            IsHitTestVisibleInChrome="True" />
+    </WindowChrome.WindowChrome>
+    <!-- 使用Border作为根元素以实现完整的圆角边框 -->
+    <Border Background="#1A1A1A" BorderBrush="#555" BorderThickness="1" CornerRadius="10">
+        <Grid>
+            <!-- 自定义标题栏 - 完全替换系统标题栏 -->
+            <Grid Height="30" MouseLeftButtonDown="WindowTitleBar_MouseLeftButtonDown"
+                  VerticalAlignment="Top" Panel.ZIndex="10">
+                <!-- 使用Border来实现标题栏，并设置圆角 -->
+                <Border Background="#2D2D2D" CornerRadius="10,10,0,0">
+                    <!-- 使用Grid作为容器，让标题文本和按钮共存 -->
+                    <Grid>
+                        <TextBlock Text="时钟"
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Center"
+                                   Foreground="#CCC"
+                                   FontSize="14" Panel.ZIndex="5" />
+
+                        <!-- 标题栏按钮 - 设置较高z-index确保可点击 -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Panel.ZIndex="10">
+                            <!-- 最小化按钮 -->
+                            <Button x:Name="MinimizeButton"
+                                    Content="−"
+                                    Width="30"
+                                    Height="30"
+                                    Click="MinimizeButton_Click"
+                                    Style="{StaticResource WindowButtonStyle}"
+                                    FontSize="16"
+                                    FontFamily="Google Sans Code, Consolas"
+                                    Focusable="True" Panel.ZIndex="20" />
+
+                            <!-- 最大化按钮 -->
+                            <Button x:Name="MaximizeButton"
+                                    Content="□"
+                                    Width="30"
+                                    Height="30"
+                                    Click="MaximizeButton_Click"
+                                    Style="{StaticResource WindowButtonStyle}"
+                                    FontSize="16"
+                                    FontFamily="Google Sans Code, Consolas"
+                                    Focusable="True" Panel.ZIndex="20" />
+
+                            <!-- 关闭按钮 -->
+                            <Button x:Name="CloseButton"
+                                    Content="✕"
+                                    Width="30"
+                                    Height="30"
+                                    Click="CloseButton_Click"
+                                    Style="{StaticResource CloseButtonStyle}"
+                                    FontSize="16"
+                                    FontFamily="Google Sans Code, Consolas"
+                                    Focusable="True" Panel.ZIndex="20" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- 菜单栏 -->
+            <Menu Background="#1A1A1A" Foreground="White" Height="30" VerticalAlignment="Top"
+                  Margin="0,30,0,0" Padding="2 0" Panel.ZIndex="10" HorizontalAlignment="Stretch"
+                  Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Window}}">
+                <!-- 文件菜单 -->
+                <MenuItem Header="文件" Style="{StaticResource DarkMenuItemStyle}">
+                    <MenuItem Header="退出" Click="ExitMenuItem_Click" Style="{StaticResource DarkSubMenuItemStyle}" />
+                </MenuItem>
+                <!-- 设置菜单 -->
+                <MenuItem Header="设置" Style="{StaticResource DarkMenuItemStyle}">
+                    <MenuItem x:Name="ShowClockMenuItem" Header="显示时钟" IsCheckable="True" IsChecked="True"
+                              Click="ShowClockMenuItem_Click" Style="{StaticResource CheckableSubMenuItemStyle}" />
+                </MenuItem>
+                <!-- 关于菜单 -->
+                <MenuItem Header="关于" Style="{StaticResource DarkMenuItemStyle}">
+                    <MenuItem Header="应用信息" Click="AboutMenuItem_Click" Style="{StaticResource DarkSubMenuItemStyle}" />
+                </MenuItem>
+            </Menu>
+
+            <!-- 内容区域 - 整体垂直居中 -->
+            <Grid Margin="0,60,0,0">
+                <!-- 使用StackPanel将日期、时间和时钟作为一个整体垂直居中 -->
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <!-- 日期显示 -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
+                        <TextBlock x:Name="YearText" FontSize="24" FontWeight="Normal"
+                                   FontFamily="Google Sans Code, Consolas" Foreground="LightCyan" />
+                        <TextBlock Text="年" FontSize="22" FontWeight="Normal" FontFamily="HarmonyOS Sans SC, 微软雅黑"
+                                   Foreground="#789" Margin="3 0" />
+                        <TextBlock x:Name="MonthText" FontSize="24" FontWeight="Normal"
+                                   FontFamily="Google Sans Code, Consolas" Foreground="LightCyan" />
+                        <TextBlock Text="月" FontSize="22" FontWeight="Normal" FontFamily="HarmonyOS Sans SC, 微软雅黑"
+                                   Foreground="#789" Margin="3 0" />
+                        <TextBlock x:Name="DayText" FontSize="24" FontWeight="Normal"
+                                   FontFamily="Google Sans Code, Consolas"
+                                   Foreground="LightCyan" />
+                        <TextBlock Text="日" FontSize="22" FontWeight="Normal" FontFamily="HarmonyOS Sans SC, 微软雅黑"
+                                   Foreground="#789" Margin="3 0" />
+                        <TextBlock Text="   " FontSize="24" FontWeight="Normal" />
+                        <TextBlock x:Name="WeekdayText" FontSize="22" FontWeight="Normal"
+                                   FontFamily="HarmonyOS Sans SC, 微软雅黑" Foreground="#95E77E" />
+                    </StackPanel>
+
+                    <!-- 时间显示 -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,20">
+                        <TextBlock x:Name="HourText" FontSize="48" FontWeight="Normal"
+                                   FontFamily="Google Sans Code, Consolas" Foreground="LightSkyBlue" />
+                        <TextBlock Text=":" FontSize="32" FontWeight="Normal" FontFamily="Google Sans Code, Consolas"
+                                   VerticalAlignment="Center" Margin="5, 0"
+                                   Foreground="Gray" />
+                        <TextBlock x:Name="MinuteText" FontSize="48" FontWeight="Normal"
+                                   FontFamily="Google Sans Code, Consolas" Foreground="LightSkyBlue" />
+                        <TextBlock Text=":" FontSize="32" FontWeight="Normal" FontFamily="Google Sans Code, Consolas"
+                                   VerticalAlignment="Center" Margin="5, 0"
+                                   Foreground="Gray" />
+                        <TextBlock x:Name="SecondText" FontSize="48" FontWeight="Normal"
+                                   FontFamily="Google Sans Code, Consolas" Foreground="LightSkyBlue" />
+                    </StackPanel>
+
+                    <!-- 时钟显示区域 -->
+                    <Canvas x:Name="ClockCanvas" Width="300" Height="300" HorizontalAlignment="Center"
+                            Background="Transparent">
+                        <!-- 时钟外圈 -->
+                        <Ellipse Width="300" Height="300" Fill="#2D2D2D" Stroke="#AAA" StrokeThickness="2" />
+
+                        <!-- 时钟刻度和数字将在代码中动态生成 -->
+
+                        <!-- 时针 -->
+                        <Line x:Name="HourHand" Stroke="#789" StrokeThickness="6" StrokeEndLineCap="Round" />
+                        <!-- 分针 -->
+                        <Line x:Name="MinuteHand" Stroke="#DEF" StrokeThickness="4" StrokeEndLineCap="Round" />
+                        <!-- 秒针 -->
+                        <Line x:Name="SecondHand" Stroke="#FF4444" StrokeThickness="2" StrokeEndLineCap="Round" />
+                        <!-- 中心点 -->
+                        <Ellipse x:Name="ClockCenter" Width="15" Height="15" Fill="#FFFFFF" />
+                    </Canvas>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

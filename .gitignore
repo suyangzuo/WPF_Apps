@@ -1,0 +1,86 @@
+﻿# Visual Studio/.NET 通用忽略规则
+
+# 编译输出目录
+**/bin/
+**/obj/
+
+# Visual Studio 目录
+.vs/
+**/.vs/
+
+# Visual Studio Code 目录
+.vscode/
+**/.vscode/
+
+# 发布输出
+**/publish/
+**/publish-framework-dependent/
+**/publish-single/
+
+#调试输出
+**/Debug/
+
+# 用户特定文件
+**/*.csproj.user
+**/*.sln.user
+**/*.suo
+**/*.ntvs*
+**/*.njsproj
+**/*.sln.docstates
+
+# 构建输出
+**/[Bb]uild/
+**/[Tt]emp/
+**/[Oo]utput/
+
+# 包依赖缓存
+**/project.nuget.cache
+**/packages/
+**/.nuget/packages/
+
+# IDE 相关文件
+.idea/
+*.swp
+*.swo
+*~
+
+# 日志文件
+**/*.log
+**/*.txt
+
+# OS 生成的文件
+Thumbs.db
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# 测试结果
+**/[Tt]est[Rr]esult*/
+**/[Bb]uild[Ll]og.*
+
+# 分析器缓存
+**/[Aa]nalysis[Rr]esult*/
+
+# .NET Core 工具
+**/dotnet-*
+
+# 编辑器配置文件冲突（保留实际的.editorconfig，但忽略生成的）
+**/obj/**/*.editorconfig
+!**/.editorconfig
+
+# 证书
+*.p12
+*.pem
+
+# 强名称密钥文件
+*.snk
+
+# 环境变量配置
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
