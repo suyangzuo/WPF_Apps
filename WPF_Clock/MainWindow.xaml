@@ -253,7 +253,7 @@
 
             <!-- 菜单栏 -->
             <Menu Background="#1A1A1A" Foreground="White" Height="30" VerticalAlignment="Top"
-                  Margin="0,30,0,0" Padding="2 0" Panel.ZIndex="10" HorizontalAlignment="Stretch"
+                  Margin="0,30,0,0" Padding="5 0" Panel.ZIndex="10" HorizontalAlignment="Stretch"
                   Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Window}}">
                 <!-- 文件菜单 -->
                 <MenuItem Header="文件" Style="{StaticResource DarkMenuItemStyle}">
