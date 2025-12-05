@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="WPF_Clock/WPF_Clock.csproj" />
+  <Project Path="WPF_Typing/WPF_Typing.csproj" Id="6970c95a-dee3-4c76-b55a-8384230de9cc" />
 </Solution>
