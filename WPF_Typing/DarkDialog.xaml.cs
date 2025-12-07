@@ -47,7 +47,6 @@ namespace WPF_Typing
         {
             if (e.ClickCount == 2)
             {
-                // 不做最大化/还原
                 return;
             }
 
@@ -57,6 +56,7 @@ namespace WPF_Typing
             }
             catch
             {
+                // ignored
             }
         }
     }

@@ -21,6 +21,15 @@
 	<ItemGroup>
 		<Resource Include="Assets\Fonts\**\*.ttf" />
 		<Resource Include="Assets\Fonts\**\*.otf" />
+		<Resource Include="DialogStyles.xaml" />
+	</ItemGroup>
+
+	<!-- Add Settings files -->
+	<ItemGroup>
+		<None Include="Properties\Settings.settings">
+			<Generator>SettingsSingleFileGenerator</Generator>
+			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
+		</None>
 	</ItemGroup>
 
 </Project>

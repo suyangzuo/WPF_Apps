@@ -47,6 +47,7 @@
 # 日志文件
 **/*.log
 **/*.txt
+!**/Texts/*.txt
 
 # OS 生成的文件
 Thumbs.db
