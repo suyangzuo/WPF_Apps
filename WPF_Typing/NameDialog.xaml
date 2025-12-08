@@ -1,4 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
+
 <Window
     AllowsTransparency="True"
     Background="Transparent"
@@ -43,15 +44,13 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <Image
+                    <TextBlock
+                        FontSize="16"
+                        Foreground="#4169E1"
                         Grid.Column="0"
-                        Height="20"
                         Margin="0,0,8,0"
-                        SnapsToDevicePixels="True"
-                        Source="pack://siteoforigin:,,,/Assets/Images/PNG/十指禅.png"
-                        Stretch="Uniform"
-                        VerticalAlignment="Center"
-                        Width="20" />
+                        Text="👤"
+                        VerticalAlignment="Center" />
 
                     <TextBlock
                         FontSize="14"

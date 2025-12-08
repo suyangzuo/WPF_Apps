@@ -3,9 +3,9 @@
     Background="Transparent"
     FontFamily="{DynamicResource AppFontFamily}"
     Foreground="#FFFFFF"
-    Height="450"
-    MinHeight="400"
-    MinWidth="800"
+    Height="600"
+    MinHeight="600"
+    MinWidth="1000"
     Title="打字练习"
     Width="800"
     WindowStartupLocation="CenterScreen"
@@ -20,6 +20,15 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <Window.Resources>
+        <!--  Window drop shadow used for custom chrome window  -->
+        <DropShadowEffect
+            BlurRadius="30"
+            Color="#000000"
+            Opacity="0.6"
+            RenderingBias="Quality"
+            ShadowDepth="0"
+            x:Key="WindowDropShadow" />
+
         <SolidColorBrush Color="#1A1A1A" x:Key="WindowBackgroundBrush" />
         <SolidColorBrush Color="#FFFFFF" x:Key="WindowTextBrush" />
 
@@ -114,7 +123,7 @@
                             <Grid>
                                 <ContentPresenter
                                     ContentSource="Header"
-                                    Margin="10,0"
+                                    Margin="12,0"
                                     VerticalAlignment="Center"
                                     x:Name="HeaderHost" />
                                 <Popup
@@ -348,7 +357,9 @@
         Background="#1A1A1A"
         BorderBrush="#555"
         BorderThickness="1"
-        CornerRadius="10">
+        CornerRadius="10"
+        Effect="{StaticResource WindowDropShadow}"
+        Margin="10">
         <Grid>
             <Grid
                 Height="36"
@@ -428,6 +439,8 @@
 
             <Menu
                 Background="{StaticResource MenuBackgroundBrush}"
+                BorderBrush="#10FFFFFF"
+                BorderThickness="0,0,0,1"
                 FontFamily="{StaticResource MenuFontFamily}"
                 Foreground="White"
                 Height="32"
@@ -541,7 +554,7 @@
                     ClipToBounds="True"
                     CornerRadius="8"
                     Margin="50,75,50,25"
-                    Padding="50px,0,50px,0">
+                    Padding="50,0,50,0">
                     <!--  Typing area: RichTextBox used to render per-character Runs so we can color them  -->
                     <!--  直接使用RichTextBox的内置滚动功能  -->
                     <RichTextBox
@@ -573,25 +586,195 @@
                 </Border>
 
                 <!--  Tester name in top-right of main content area (below title/menu)  -->
-                <TextBlock
-                    FontFamily="{StaticResource MenuFontFamily}"
-                    FontSize="14"
-                    HorizontalAlignment="Right"
+                <Grid
+                    HorizontalAlignment="Stretch"
                     IsHitTestVisible="False"
-                    Margin="0,30,55,0"
+                    Margin="25,30,25,0"
+                    MaxWidth="1000"
                     Panel.ZIndex="20"
-                    VerticalAlignment="Top">
-                    <Run Foreground="#AAA" Text="测试者" />
-                    <Run Foreground="Gray" Text=":" />
-                    <Run Foreground="#9DCBFF">
-                        <Run.Text>
-                            <Binding
-                                FallbackValue="江湖人士"
-                                Path="TesterName"
-                                TargetNullValue="江湖人士" />
-                        </Run.Text>
-                    </Run>
-                </TextBlock>
+                    VerticalAlignment="Top"
+                    Width="Auto"
+                    x:Name="TopRightInfoPanel">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <!--  1) 已输入字符数 / 总字符数 (label + numbers; label 和数字用不同颜色)  -->
+                    <TextBlock
+                        FontFamily="{StaticResource MenuFontFamily}"
+                        FontSize="1"
+                        Grid.Column="0"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                        <Run
+                            FontSize="14"
+                            Foreground="DarkGray"
+                            Text="已输入" />
+                        <Run
+                            FontFamily="{StaticResource MenuFontFamily}"
+                            FontSize="14"
+                            Foreground="DimGray"
+                            Text=":&#8202;" />
+                        <Run
+                            FontSize="14"
+                            Foreground="#9DCBFF"
+                            Text="{Binding TypedCount, Mode=OneWay, FallbackValue=0}" />
+                        <Run
+                            FontFamily="微软雅黑"
+                            FontSize="14"
+                            Foreground="Gray"
+                            Text="&#8202;/&#8202;" />
+                        <Run
+                            FontSize="14"
+                            Foreground="#32CD32"
+                            Text="{Binding TotalCount, Mode=OneWay, FallbackValue=0}" />
+                    </TextBlock>
+
+                    <!--  2) 输入进度: (标签 + 只显示百分比)  -->
+                    <TextBlock
+                        FontFamily="{StaticResource MenuFontFamily}"
+                        FontSize="1"
+                        Grid.Column="1"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                        <Run
+                            FontSize="14"
+                            Foreground="DarkGray"
+                            Text="进度" />
+                        <Run
+                            FontFamily="{StaticResource MenuFontFamily}"
+                            FontSize="14"
+                            Foreground="DimGray"
+                            Text=":&#8202;" />
+                        <Run
+                            FontSize="14"
+                            Foreground="#FFA500"
+                            Text="{Binding ProgressPercent, Mode=OneWay, FallbackValue=0, StringFormat={}{0}}" />
+                        <Run
+                            FontFamily="HarmonyOS Sans SC, 微软雅黑"
+                            FontSize="12"
+                            Foreground="LightSlateGray"
+                            Text="&#8202;%" />
+                    </TextBlock>
+
+                    <!--  3) 正确率: (标签 + 只显示百分比)  -->
+                    <TextBlock
+                        FontFamily="{StaticResource MenuFontFamily}"
+                        FontSize="1"
+                        Grid.Column="2"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                        <Run
+                            FontSize="14"
+                            Foreground="DarkGray"
+                            Text="正确率" />
+                        <Run
+                            FontFamily="{StaticResource MenuFontFamily}"
+                            FontSize="14"
+                            Foreground="DimGray"
+                            Text=":&#8202;" />
+                        <Run
+                            FontSize="14"
+                            Foreground="#FFD700"
+                            Text="{Binding AccuracyPercent, Mode=OneWay, FallbackValue=0, StringFormat={}{0}}" />
+                        <Run
+                            FontFamily="HarmonyOS Sans SC, 微软雅黑"
+                            FontSize="12"
+                            Foreground="LightSlateGray"
+                            Text="&#8202;%" />
+                    </TextBlock>
+
+                    <!--  4) 速度: 显示数字并带单位 (数字与单位用不同颜色)  -->
+                    <TextBlock
+                        FontFamily="{StaticResource MenuFontFamily}"
+                        FontSize="1"
+                        Grid.Column="3"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                        <Run
+                            FontSize="14"
+                            Foreground="DarkGray"
+                            Text="速度" />
+                        <Run
+                            FontFamily="{StaticResource MenuFontFamily}"
+                            FontSize="14"
+                            Foreground="DimGray"
+                            Text=":&#8202;" />
+                        <Run
+                            FontSize="14"
+                            Foreground="#9DCBFF"
+                            Text="{Binding Speed, Mode=OneWay, FallbackValue=0, StringFormat={}{0:F0}}" />
+                    </TextBlock>
+
+                    <!--  5) 已用时间: 时:分:秒 (numbers and colons different colors)  -->
+                    <TextBlock
+                        FontFamily="{StaticResource MenuFontFamily}"
+                        FontSize="1"
+                        Grid.Column="4"
+                        HorizontalAlignment="Center">
+                        <Run
+                            FontSize="14"
+                            Foreground="DarkGray"
+                            Text="用时" />
+                        <Run
+                            FontFamily="{StaticResource MenuFontFamily}"
+                            FontSize="14"
+                            Foreground="DimGray"
+                            Text=":&#8202;" />
+                        <Run
+                            FontSize="14"
+                            Foreground="#9DCBFF"
+                            Text="{Binding ElapsedHours, Mode=OneWay, FallbackValue=0, StringFormat={}{0:D2}}" />
+                        <Run
+                            FontFamily="{StaticResource MenuFontFamily}"
+                            FontSize="14"
+                            Foreground="DimGray"
+                            Text=":" />
+                        <Run
+                            FontSize="14"
+                            Foreground="#9DCBFF"
+                            Text="{Binding ElapsedMinutes, Mode=OneWay, FallbackValue=0, StringFormat={}{0:D2}}" />
+                        <Run
+                            FontFamily="{StaticResource MenuFontFamily}"
+                            FontSize="14"
+                            Foreground="DimGray"
+                            Text=":" />
+                        <Run
+                            FontSize="14"
+                            Foreground="#9DCBFF"
+                            Text="{Binding ElapsedSeconds, Mode=OneWay, FallbackValue=0, StringFormat={}{0:D2}}" />
+                    </TextBlock>
+
+                    <!--  6) 测试者姓名 (existing binding preserved)  -->
+                    <TextBlock
+                        FontFamily="{StaticResource MenuFontFamily}"
+                        FontSize="1"
+                        Grid.Column="5"
+                        HorizontalAlignment="Center">
+                        <Run
+                            FontSize="14"
+                            Foreground="DarkGray"
+                            Text="姓名" />
+                        <Run
+                            FontFamily="{StaticResource MenuFontFamily}"
+                            FontSize="14"
+                            Foreground="DimGray"
+                            Text=":&#8202;" />
+                        <Run FontSize="14" Foreground="#9DCBFF">
+                            <Run.Text>
+                                <Binding
+                                    FallbackValue="江湖人士"
+                                    Mode="OneWay"
+                                    Path="TesterName"
+                                    TargetNullValue="江湖人士" />
+                            </Run.Text>
+                        </Run>
+                    </TextBlock>
+                </Grid>
             </Grid>
         </Grid>
     </Border>

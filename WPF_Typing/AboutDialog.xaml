@@ -133,7 +133,7 @@
                         IsDefault="True"
                         Style="{StaticResource DialogOkButtonStyle}"
                         Width="80"
-                        x:Name="OKButton" />
+                        x:Name="OkButton" />
                 </StackPanel>
             </Border>
         </Grid>

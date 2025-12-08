@@ -86,7 +86,10 @@
                         Foreground="#DDD"
                         TextWrapping="Wrap"
                         x:Name="HelpText">
-                        <Run FontWeight="Bold" Text="使用说明:" />
+                        <Run
+                            FontWeight="Bold"
+                            Foreground="DarkGray"
+                            Text="使用说明:" />
                         <LineBreak />
                         <LineBreak />
                         <Run Text="1. 从'文本选择'菜单中选择练习文本" />
@@ -100,15 +103,6 @@
                         <Run Text="5. 可以通过'设置'菜单更改姓名和开启计时" />
                         <LineBreak />
                         <Run Text="6. 通过'分析'菜单查看练习统计" />
-                        <LineBreak />
-                        <LineBreak />
-                        <Run FontWeight="Bold" Text="快捷键:" />
-                        <LineBreak />
-                        <Run Text="• Ctrl+N: 新建练习" />
-                        <LineBreak />
-                        <Run Text="• Ctrl+S: 保存练习状态" />
-                        <LineBreak />
-                        <Run Text="• Esc: 退出全屏模式" />
                     </TextBlock>
                 </ScrollViewer>
             </Border>
