@@ -33,6 +33,7 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <!--  悬停背景色  -->
                             <Setter Property="Background" TargetName="Bd" Value="#37F" />
+                            <Setter Property="BorderThickness" TargetName="Bd" Value="0" />
                             <!--  悬停边框色  -->
                             <Setter Property="BorderBrush" TargetName="Bd" Value="#37F" />
                         </Trigger>
@@ -68,21 +69,21 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border
-                        Background="{TemplateBinding Background}"
-                        CornerRadius="0"
-                        x:Name="bd">
+Background="{TemplateBinding Background}"
+CornerRadius="0"
+x:Name="bd">
                         <Viewbox
-                            Height="12"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Width="12">
+Height="12"
+HorizontalAlignment="Center"
+VerticalAlignment="Center"
+Width="12">
                             <Canvas Height="12" Width="12">
                                 <Path
-                                    Data="M2,2 L10,10 M10,2 L2,10"
-                                    Stroke="White"
-                                    StrokeEndLineCap="Round"
-                                    StrokeStartLineCap="Round"
-                                    StrokeThickness="1.6" />
+Data="M2,2 L10,10 M10,2 L2,10"
+Stroke="White"
+StrokeEndLineCap="Round"
+StrokeStartLineCap="Round"
+StrokeThickness="1.6" />
                             </Canvas>
                         </Viewbox>
                     </Border>
@@ -113,12 +114,13 @@
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
                     <Border
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}"
-                        CornerRadius="4"
-                        Padding="{TemplateBinding Padding}">
-                        <ScrollViewer VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" x:Name="PART_ContentHost" />
+Background="{TemplateBinding Background}"
+BorderBrush="{TemplateBinding BorderBrush}"
+BorderThickness="{TemplateBinding BorderThickness}"
+CornerRadius="4"
+Padding="{TemplateBinding Padding}">
+                        <ScrollViewer VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
+x:Name="PART_ContentHost" />
                     </Border>
                 </ControlTemplate>
             </Setter.Value>

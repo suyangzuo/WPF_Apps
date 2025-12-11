@@ -1,4 +1,4 @@
-﻿<Window
+<Window
     AllowsTransparency="True"
     Background="Transparent"
     FontFamily="{DynamicResource AppFontFamily}"
@@ -39,10 +39,10 @@
         <SolidColorBrush Color="#1A1A1A" x:Key="MenuBackgroundBrush" />
 
         <!--  Menu-only font family (force Microsoft YaHei)  -->
-        <FontFamily x:Key="MenuFontFamily">/WPF_Typing;component/Assets/Fonts/#Google Sans Code, Consolas, HarmonyOS Sans SC, 微软雅黑</FontFamily>
+        <FontFamily x:Key="MenuFontFamily">Google Sans Code, Consolas, HarmonyOS Sans SC, 微软雅黑</FontFamily>
 
         <!--  Shared application font family (kept for other controls if needed)  -->
-        <FontFamily x:Key="AppFontFamily">/WPF_Typing;component/Assets/Fonts/#Google Sans Code, Consolas, HarmonyOS Sans SC, 微软雅黑</FontFamily>
+        <FontFamily x:Key="AppFontFamily">Google Sans Code, Consolas, HarmonyOS Sans SC, 微软雅黑</FontFamily>
 
         <Style TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource AppFontFamily}" />
@@ -358,12 +358,13 @@
         BorderBrush="#555"
         BorderThickness="1"
         CornerRadius="10"
-        Effect="{StaticResource WindowDropShadow}"
-        Margin="10">
+        Effect="{StaticResource WindowDropShadow}">
         <Grid>
             <Grid
                 Height="36"
                 MouseLeftButtonDown="WindowTitleBar_MouseLeftButtonDown"
+                MouseMove="WindowTitleBar_MouseMove"
+                MouseLeftButtonUp="WindowTitleBar_MouseLeftButtonUp"
                 Panel.ZIndex="10"
                 VerticalAlignment="Top"
                 x:Name="TitleBarGrid">
@@ -556,33 +557,36 @@
                     Margin="50,75,50,25"
                     Padding="50,0,50,0">
                     <!--  Typing area: RichTextBox used to render per-character Runs so we can color them  -->
-                    <!--  直接使用RichTextBox的内置滚动功能  -->
-                    <RichTextBox
-                        AcceptsReturn="False"
-                        AcceptsTab="False"
-                        Background="#151515"
-                        BorderThickness="0"
-                        FontFamily="{StaticResource MenuFontFamily}"
-                        FontSize="24"
-                        Foreground="#777"
-                        HorizontalAlignment="Stretch"
+                    <!--  使用 ScrollViewer 包裹 RichTextBox，完全控制滚动行为  -->
+                    <ScrollViewer
                         HorizontalScrollBarVisibility="Disabled"
-                        IsDocumentEnabled="True"
-                        IsReadOnly="True"
-                        MaxWidth="1250"
-                        PreviewKeyDown="TypingDisplay_PreviewKeyDown"
-                        PreviewTextInput="TypingDisplay_PreviewTextInput"
-                        ScrollViewer.CanContentScroll="True"
-                        ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                        ScrollViewer.VerticalScrollBarVisibility="Hidden"
-                        SnapsToDevicePixels="True"
-                        TextOptions.TextFormattingMode="Display"
-                        UseLayoutRounding="True"
-                        x:Name="TypingDisplay">
-                        <FlowDocument>
-                            <Paragraph />
-                        </FlowDocument>
-                    </RichTextBox>
+                        VerticalScrollBarVisibility="Hidden"
+                        x:Name="TypingDisplayScrollViewer">
+                        <RichTextBox
+                            AcceptsReturn="False"
+                            AcceptsTab="False"
+                            Background="#151515"
+                            BorderThickness="0"
+                            FontFamily="{StaticResource MenuFontFamily}"
+                            FontSize="24"
+                            Foreground="#777"
+                            Height="Auto"
+                            HorizontalAlignment="Stretch"
+                            HorizontalScrollBarVisibility="Disabled"
+                            IsDocumentEnabled="True"
+                            IsReadOnly="True"
+                            MaxWidth="1250"
+                            PreviewKeyDown="TypingDisplay_PreviewKeyDown"
+                            PreviewTextInput="TypingDisplay_PreviewTextInput"
+                            SnapsToDevicePixels="True"
+                            TextOptions.TextFormattingMode="Display"
+                            UseLayoutRounding="True"
+                            x:Name="TypingDisplay">
+                            <FlowDocument>
+                                <Paragraph />
+                            </FlowDocument>
+                        </RichTextBox>
+                    </ScrollViewer>
                 </Border>
 
                 <!--  Tester name in top-right of main content area (below title/menu)  -->

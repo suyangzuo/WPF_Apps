@@ -13,10 +13,10 @@ using System.Windows.Shell; // for WindowChrome
 using System.ComponentModel; // for DesignerProperties
 using System.Runtime.InteropServices;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 
 namespace WPF_Typing
 {
-    // 窗口状态信息类，用于保存和恢复窗口位置、大小和状态
     public class WindowStateInfo
     {
         public double Left { get; set; }
@@ -24,6 +24,7 @@ namespace WPF_Typing
         public double Width { get; set; }
         public double Height { get; set; }
         public bool IsMaximized { get; set; }
+        public string? TesterName { get; set; }
     }
 
     public partial class MainWindow : Window, System.ComponentModel.INotifyPropertyChanged
@@ -45,10 +46,15 @@ namespace WPF_Typing
         private bool _isCustomMaximized;
         private Rect _restoreBounds = Rect.Empty; // stores normal window bounds to restore to
         private readonly double _outerMargin = 0; // DIP margin to leave from screen edges
+        private bool _isDragging = false;
+        private bool _isPotentialDrag = false;
+        private Point _dragStartPosition;
+        private Point _dragStartScreenPosition;
 
-        // 手动滚动控制
-        private bool _isManualScroll = false;
-        private double _manualScrollOffset = 0;
+        private ScrollViewer? _typingScrollViewer = null;
+        private DispatcherTimer? _scrollTimer = null;
+        private bool _isScrolling = false;
+        private DispatcherTimer? _sizeChangedTimer = null;
 
         // Current tester name (default)
         private string _testerName = "江湖人士";
@@ -72,11 +78,11 @@ namespace WPF_Typing
             PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propName));
 
         // pending drag state when clicking on titlebar while maximized
-        // private bool _isPendingDrag = false; // 暂时注释掉未使用的字段
-        // private NativePoint _pendingDragCursor; // 暂时注释掉未使用的字段
+        // private bool _isPendingDrag = false;
+        // private NativePoint _pendingDragCursor;
 
         // per-character state: 0 = untouched, 1 = correct, -1 = wrong
-        // private readonly Dictionary<string, int> _charStates = new(); // 注释掉原始定义
+        // private readonly Dictionary<string, int> _charStates = new();
 
         // map visible (line:char) to Run for quick caret placement
         private readonly Dictionary<string, System.Windows.Documents.Run> _runMap = new();
@@ -90,72 +96,143 @@ namespace WPF_Typing
         // timing helpers used by the typing logic
         private System.Diagnostics.Stopwatch _stopwatch = new System.Diagnostics.Stopwatch();
         private bool _timerRunning = false;
-        
-        // 计时相关变量
+
         private bool _isTimingEnabled = false;
         private DateTime _startTime;
         private System.Windows.Threading.DispatcherTimer _timer = new System.Windows.Threading.DispatcherTimer();
-        
-        // 手动滚动重置计时器：当用户停止滚动一段时间后，恢复自动滚动行为
-        private System.Windows.Threading.DispatcherTimer _manualScrollResetTimer = new System.Windows.Threading.DispatcherTimer();
 
         // ---- Typing stats properties (bound to UI) ----
         private int _typedCount = 0;
+
         public int TypedCount
         {
             get => _typedCount;
-            private set { if (_typedCount != value) { _typedCount = value; OnPropertyChanged(nameof(TypedCount)); } }
+            private set
+            {
+                if (_typedCount != value)
+                {
+                    _typedCount = value;
+                    OnPropertyChanged(nameof(TypedCount));
+                }
+            }
         }
-        
+
         private int _totalCount = 0;
+
         public int TotalCount
         {
             get => _totalCount;
-            private set { if (_totalCount != value) { _totalCount = value; OnPropertyChanged(nameof(TotalCount)); } }
+            private set
+            {
+                if (_totalCount != value)
+                {
+                    _totalCount = value;
+                    OnPropertyChanged(nameof(TotalCount));
+                }
+            }
         }
-        
+
         private double _progressPercent = 0.0; // 0..100
+
         public double ProgressPercent
         {
             get => _progressPercent;
-            private set { if (Math.Abs(_progressPercent - value) > 0.0001) { _progressPercent = value; OnPropertyChanged(nameof(ProgressPercent)); } }
+            private set
+            {
+                if (Math.Abs(_progressPercent - value) > 0.0001)
+                {
+                    _progressPercent = value;
+                    OnPropertyChanged(nameof(ProgressPercent));
+                }
+            }
         }
-        
+
         private double _accuracyPercent = 0.0; // 0..100
+
         public double AccuracyPercent
         {
             get => _accuracyPercent;
-            private set { if (Math.Abs(_accuracyPercent - value) > 0.0001) { _accuracyPercent = value; OnPropertyChanged(nameof(AccuracyPercent)); } }
+            private set
+            {
+                if (Math.Abs(_accuracyPercent - value) > 0.0001)
+                {
+                    _accuracyPercent = value;
+                    OnPropertyChanged(nameof(AccuracyPercent));
+                }
+            }
         }
-        
+
         private double _speed = 0.0; // characters per minute
+
         public double Speed
         {
             get => _speed;
-            private set { if (Math.Abs(_speed - value) > 0.0001) { _speed = value; OnPropertyChanged(nameof(Speed)); } }
+            private set
+            {
+                if (Math.Abs(_speed - value) > 0.0001)
+                {
+                    _speed = value;
+                    OnPropertyChanged(nameof(Speed));
+                }
+            }
         }
-        
+
         private int _elapsedHours = 0;
-        public int ElapsedHours { get => _elapsedHours; private set { if (_elapsedHours != value) { _elapsedHours = value; OnPropertyChanged(nameof(ElapsedHours)); } } }
+
+        public int ElapsedHours
+        {
+            get => _elapsedHours;
+            private set
+            {
+                if (_elapsedHours != value)
+                {
+                    _elapsedHours = value;
+                    OnPropertyChanged(nameof(ElapsedHours));
+                }
+            }
+        }
+
         private int _elapsedMinutes = 0;
-        public int ElapsedMinutes { get => _elapsedMinutes; private set { if (_elapsedMinutes != value) { _elapsedMinutes = value; OnPropertyChanged(nameof(ElapsedMinutes)); } } }
+
+        public int ElapsedMinutes
+        {
+            get => _elapsedMinutes;
+            private set
+            {
+                if (_elapsedMinutes != value)
+                {
+                    _elapsedMinutes = value;
+                    OnPropertyChanged(nameof(ElapsedMinutes));
+                }
+            }
+        }
+
         private int _elapsedSeconds = 0;
-        public int ElapsedSeconds { get => _elapsedSeconds; private set { if (_elapsedSeconds != value) { _elapsedSeconds = value; OnPropertyChanged(nameof(ElapsedSeconds)); } } }
-        
+
+        public int ElapsedSeconds
+        {
+            get => _elapsedSeconds;
+            private set
+            {
+                if (_elapsedSeconds != value)
+                {
+                    _elapsedSeconds = value;
+                    OnPropertyChanged(nameof(ElapsedSeconds));
+                }
+            }
+        }
+
         // whether the typing run has finished (user typed the very last character)
         private bool _typingFinished = false;
 
-        // 初始化计时器
         private void InitializeTimer()
         {
             _timer.Interval = TimeSpan.FromSeconds(1);
             _timer.Tick += Timer_Tick;
         }
-        
-        // 计时器事件处理
+
         private void Timer_Tick(object? sender, EventArgs e)
         {
-            // 每秒更新：已用时间和速度
             if (!_timerRunning) return;
             try
             {
@@ -165,7 +242,6 @@ namespace WPF_Typing
                 ElapsedMinutes = elapsed.Minutes;
                 ElapsedSeconds = elapsed.Seconds;
 
-                // 更新速度（已输入字符数 / 已用时间(分钟)）
                 double minutes = elapsed.TotalMinutes;
                 if (minutes > 0)
                 {
@@ -181,17 +257,14 @@ namespace WPF_Typing
                 // ignore transient update errors
             }
         }
-        
-        // 显示分析结果
+
         private void ShowAnalysis()
         {
-            // 计算统计数据
             int totalChars = _charStates.Count;
             int correctChars = _charStates.Values.Count(s => s == CharState.Correct);
             int incorrectChars = _charStates.Values.Count(s => s == CharState.Incorrect);
             double accuracy = totalChars > 0 ? (double)correctChars / totalChars * 100 : 0;
-            
-            // 计算时间
+
             TimeSpan elapsedTime;
             if (_isTimingEnabled)
             {
@@ -201,23 +274,21 @@ namespace WPF_Typing
             {
                 elapsedTime = _stopwatch.Elapsed;
             }
-            
-            // 计算速度（字符/分钟）
+
             double speed = 0;
             if (elapsedTime.TotalMinutes > 0)
             {
                 speed = correctChars / elapsedTime.TotalMinutes;
             }
-            
-            // 显示结果
+
             string message = $"练习统计:\n\n" +
-                            $"总字符数: {totalChars}\n" +
-                            $"正确字符: {correctChars}\n" +
-                            $"错误字符: {incorrectChars}\n" +
-                            $"准确率: {accuracy:F1}%\n" +
-                            $"用时: {elapsedTime.Minutes}分{elapsedTime.Seconds}秒\n" +
-                            $"速度: {speed:F1}字符/分钟";
-            
+                             $"总字符数: {totalChars}\n" +
+                             $"正确字符: {correctChars}\n" +
+                             $"错误字符: {incorrectChars}\n" +
+                             $"准确率: {accuracy:F1}%\n" +
+                             $"用时: {elapsedTime.Minutes}分{elapsedTime.Seconds}秒\n" +
+                             $"速度: {speed:F1}字符/分钟";
+
             var analysisDialog = new AnalysisDialog(message);
             analysisDialog.Owner = this;
             analysisDialog.ShowDialog();
@@ -226,25 +297,24 @@ namespace WPF_Typing
         public MainWindow()
         {
             InitializeComponent();
-            
-            // 初始化计时器
+
             InitializeTimer();
 
             // manual scroll reset timer setup
-            _manualScrollResetTimer.Interval = TimeSpan.FromMilliseconds(600);
-            _manualScrollResetTimer.Tick += (s, e) =>
-            {
-                try
-                {
-                    _manualScrollResetTimer.Stop();
-                    _isManualScroll = false;
-                }
-                catch
-                {
-                    // ignored
-                }
-            };
-            
+            // _manualScrollResetTimer.Interval = TimeSpan.FromMilliseconds(600);
+            // _manualScrollResetTimer.Tick += (s, e) =>
+            // {
+            //     try
+            //     {
+            //         _manualScrollResetTimer.Stop();
+            //         _isManualScroll = false;
+            //     }
+            //     catch
+            //     {
+            //         // ignored
+            //     }
+            // };
+
             // prepare caret gradient brush (transparent -> white -> transparent vertically)
             _caretGradientBrush = new LinearGradientBrush()
             {
@@ -261,8 +331,6 @@ namespace WPF_Typing
             this.DataContext = this;
 
             // initialize default tester name
-            TesterName = "江湖人士";
-
             // prepare paths
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             var folder = Path.Combine(appData, "WPF_Typing");
@@ -279,63 +347,53 @@ namespace WPF_Typing
             // also handle typing area focus changes (if control exists at runtime, handlers are added in Loaded)
         }
 
-        // 窗口状态变化事件处理程序
         private void MainWindow_StateChanged(object? sender, EventArgs e)
         {
-            // 处理窗口状态变化，例如最大化、最小化等
             if (WindowState == WindowState.Maximized && !_isCustomMaximized)
             {
-                // 如果是系统最大化，转换为自定义最大化
+                if (_restoreBounds.IsEmpty)
+                {
+                    _restoreBounds = new Rect(Left, Top, Width, Height);
+                }
                 WindowState = WindowState.Normal;
                 ApplyCustomMaximize();
             }
             else if (WindowState == WindowState.Normal && _isCustomMaximized)
             {
-                // 如果是正常状态但之前是自定义最大化，恢复原始大小
                 RestoreFromCustomMaximize();
             }
         }
 
-        // 应用自定义最大化
         private void ApplyCustomMaximize()
         {
             if (!_isCustomMaximized)
             {
-                // 保存当前窗口状态
-                _restoreBounds = new Rect(Left, Top, Width, Height);
+                if (_restoreBounds.IsEmpty)
+                {
+                    _restoreBounds = new Rect(Left, Top, Width, Height);
+                }
                 _isCustomMaximized = true;
 
-                // 设置最大化状态
-                var screenWidth = SystemParameters.PrimaryScreenWidth;
-                var screenHeight = SystemParameters.PrimaryScreenHeight;
+                var workArea = SystemParameters.WorkArea;
 
-                // 应用外边距
-                Left = _outerMargin;
-                Top = _outerMargin;
-                Width = screenWidth - 2 * _outerMargin;
-                Height = screenHeight - 2 * _outerMargin;
+                Left = workArea.Left + _outerMargin;
+                Top = workArea.Top + _outerMargin;
+                Width = workArea.Width - 2 * _outerMargin;
+                Height = workArea.Height - 2 * _outerMargin;
             }
         }
 
-        // 从自定义最大化恢复
         private void RestoreFromCustomMaximize()
         {
             if (_isCustomMaximized)
             {
                 _isCustomMaximized = false;
 
-                // 恢复原始窗口大小和位置
                 Left = _restoreBounds.Left;
                 Top = _restoreBounds.Top;
                 Width = _restoreBounds.Width;
                 Height = _restoreBounds.Height;
             }
-        }
-
-        // 禁止鼠标滚轮滚动
-        private void TypingDisplay_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
-        {
-            e.Handled = true; // 阻止默认的滚动行为
         }
 
         private void MainWindow_Loaded(object? sender, RoutedEventArgs e)
@@ -367,25 +425,19 @@ namespace WPF_Typing
                     TypingDisplay.SizeChanged += TypingDisplay_SizeChanged;
                     TypingDisplay.GotFocus += (s, ev) => UpdateCaretBackgrounds(_currentLine, _currentChar);
                     TypingDisplay.LostFocus += (s, ev) => UpdateCaretBackgrounds(null, null);
-                    // 禁止滚轮滚动
-                    TypingDisplay.PreviewMouseWheel += TypingDisplay_PreviewMouseWheel;
-
-                    // Try to find the internal ScrollViewer and listen for scroll changes so we can detect manual scrolling.
-                    try
+                    
+                    TypingDisplay.RequestBringIntoView += (sender, e) =>
                     {
-                        var sv = FindVisualChildren(TypingDisplay).OfType<ScrollViewer>().FirstOrDefault();
-                        if (sv != null)
-                        {
-                            sv.ScrollChanged += TypingDisplay_ScrollChanged;
-                            sv.PreviewMouseLeftButtonDown += (ss, ee) => { _isManualScroll = true; _manualScrollOffset = sv.VerticalOffset; _manualScrollResetTimer.Stop(); _manualScrollResetTimer.Start(); };
-
-                            // If user uses mouse wheel on scrollviewer directly, mark manual scroll too
-                            sv.PreviewMouseWheel += (ss, ee) => { _isManualScroll = true; _manualScrollOffset = sv.VerticalOffset; _manualScrollResetTimer.Stop(); _manualScrollResetTimer.Start(); };
-                        }
-                    }
-                    catch
+                        e.Handled = true;
+                    };
+                    
+                    if (TypingDisplayScrollViewer != null)
                     {
-                        // ignore if we can't find the ScrollViewer
+                        _typingScrollViewer = TypingDisplayScrollViewer;
+                        
+                        _typingScrollViewer.PreviewMouseWheel += (ss, ee) => ee.Handled = true;
+                        
+                        _typingScrollViewer.ScrollChanged += TypingDisplay_ScrollChanged;
                     }
                 }
             }
@@ -396,17 +448,38 @@ namespace WPF_Typing
 
         private void TypingDisplay_SizeChanged(object? sender, SizeChangedEventArgs e)
         {
-            // Recompute visible rendering when the typing area size changes to ensure line wrapping and LineHeight are applied correctly
             try
             {
-                _needsFullRebuild = true; // 窗口大小改变时需要完全重建文档
-                _needsScroll = true; // 窗口大小改变时需要重新设置滚动位置
-                _targetScrollLine = _visibleStartLine;
-                RenderVisibleLines();
+                if (_sizeChangedTimer != null)
+                {
+                    _sizeChangedTimer.Stop();
+                    _sizeChangedTimer = null;
+                }
+
+                _sizeChangedTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(150)
+                };
+
+                _sizeChangedTimer.Tick += (s, args) =>
+                {
+                    _sizeChangedTimer?.Stop();
+                    _sizeChangedTimer = null;
+                    
+                    try
+                    {
+                        _needsFullRebuild = true;
+                        RenderVisibleLines();
+                    }
+                    catch
+                    {
+                    }
+                };
+
+                _sizeChangedTimer.Start();
             }
             catch
             {
-                // ignore transient layout exceptions
             }
         }
 
@@ -435,6 +508,11 @@ namespace WPF_Typing
                             // saved as maximized: restore the saved normal bounds into _restoreBounds then apply custom maximize
                             _restoreBounds = new Rect(state.Left, state.Top, state.Width, state.Height);
                             ApplyCustomMaximize();
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(state.TesterName))
+                        {
+                            TesterName = state.TesterName;
                         }
                     }
                     else
@@ -506,7 +584,8 @@ namespace WPF_Typing
                     Top = top,
                     Width = width,
                     Height = height,
-                    IsMaximized = isMax
+                    IsMaximized = isMax,
+                    TesterName = TesterName
                 };
 
                 var json = JsonSerializer.Serialize(state);
@@ -549,7 +628,6 @@ namespace WPF_Typing
                                 var parent = new MenuItem { Header = category };
                                 parent.Style = (Style)FindResource("SubMenuHeaderStyle");
 
-                                // 为二级菜单项添加图标
                                 try
                                 {
                                     var iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets",
@@ -580,7 +658,6 @@ namespace WPF_Typing
                                 }
                                 catch
                                 {
-                                    // 如果图标加载失败，忽略错误继续执行
                                 }
 
                                 if (prop.Value.ValueKind == JsonValueKind.Array)
@@ -656,7 +733,8 @@ namespace WPF_Typing
                                         {
                                             Text = title,
                                             Foreground =
-                                                (SolidColorBrush)(new BrushConverter().ConvertFromString("#FFFFFF") ?? Brushes.White),
+                                                (SolidColorBrush)(new BrushConverter().ConvertFromString("#FFFFFF") ??
+                                                                  Brushes.White),
                                             VerticalAlignment = VerticalAlignment.Center
                                         };
                                         panel.Children.Add(titleTb);
@@ -786,11 +864,8 @@ namespace WPF_Typing
                 if (File.Exists(actualPath))
                 {
                     var text = File.ReadAllText(actualPath, Encoding.UTF8);
-                    // 将所有换行符替换为空格，创建连续文本
                     text = text.Replace("\r\n", " ").Replace('\r', ' ').Replace('\n', ' ');
-                    // 将连续空格归一化为单个空格
                     text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ");
-                    // 将整个文本作为一个段落，不再按句子分割
                     _allLines = new[] { text };
                 }
                 else if (Directory.Exists(actualPath))
@@ -800,11 +875,8 @@ namespace WPF_Typing
                     if (txts.Length > 0)
                     {
                         var text = File.ReadAllText(txts[0], Encoding.UTF8);
-                        // 将所有换行符替换为空格，创建连续文本
                         text = text.Replace("\r\n", " ").Replace('\r', ' ').Replace('\n', ' ');
-                        // 将连续空格归一化为单个空格
                         text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ");
-                        // 将整个文本作为一个段落，不再按句子分割
                         _allLines = new[] { text };
                     }
                     else
@@ -824,11 +896,10 @@ namespace WPF_Typing
                 _charStates.Clear();
                 _runMap.Clear();
                 _changedChars.Clear();
-                _needsFullRebuild = true; // 标记需要完全重建文档
-                _needsScroll = false; // 重置滚动标记
+                _needsFullRebuild = true;
                 _stopwatch.Reset();
                 _timerRunning = false;
-                
+
                 // initialize typing stats
                 TotalCount = _allLines.Sum(s => (s ?? string.Empty).Length);
                 TypedCount = 0;
@@ -839,9 +910,23 @@ namespace WPF_Typing
                 _typingFinished = false;
 
                 // stop timer if running
-                try { _timer.Stop(); } catch { }
+                try
+                {
+                    _timer.Stop();
+                }
+                catch
+                {
+                }
 
                 RenderVisibleLines();
+
+                if (_typingScrollViewer != null)
+                {
+                    Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+                    {
+                        _typingScrollViewer.ScrollToVerticalOffset(0);
+                    }));
+                }
 
                 // focus and place caret at the current character (start)
                 TypingDisplay.Focus();
@@ -853,33 +938,23 @@ namespace WPF_Typing
             }
         }
 
-        // 优化后的字符状态管理：使用枚举代替整数，提高可读性
         private enum CharState
         {
-            Untouched = 0,  // 未输入
-            Correct = 1,    // 正确输入
-            Incorrect = -1  // 错误输入
+            Untouched = 0,
+            Correct = 1,
+            Incorrect = -1
         }
 
-        // 优化后的字符状态字典，使用枚举类型
         private readonly Dictionary<string, CharState> _charStates = new();
 
-        // 记录哪些字符需要更新，避免全量刷新
         private readonly HashSet<string> _changedChars = new();
 
-        // 标记文档是否需要完全重建
         private bool _needsFullRebuild = true;
 
-        // 记录是否需要滚动
-        private bool _needsScroll = false;
-        private int _targetScrollLine = 0;
-
-        // 优化后的RenderVisibleLines方法，只在必要时重建文档和滚动
         private void RenderVisibleLines()
         {
             if (TypingDisplay == null) return;
 
-            // 只有在需要完全重建时才重建文档
             if (_needsFullRebuild)
             {
                 BuildInitialDocument();
@@ -887,62 +962,36 @@ namespace WPF_Typing
             }
             else
             {
-                // 只更新已更改的字符
                 UpdateChangedCharacters();
-            }
-
-            // 更新光标位置
-            UpdateCaretPosition();
-
-            // 只在需要滚动时才执行滚动操作
-            if (_needsScroll)
-            {
-                _needsScroll = false;
-                try
-                {
-                    double scrollOffset;
-                    if (_isManualScroll)
-                    {
-                        // respect manual scroll offset (do not fight user's scroll)
-                        scrollOffset = _manualScrollOffset;
-                        // leave _isManualScroll true for a short duration so subsequent auto-scroll doesn't override immediately
-                    }
-                    else
-                    {
-                        scrollOffset = _targetScrollLine * GetDocumentLineHeight();
-                    }
-
-                    // 使用Dispatcher确保滚动在UI更新后执行
-                    Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
-                    {
-                        TypingDisplay.ScrollToVerticalOffset(scrollOffset);
-                        // avoid forcing UpdateLayout(); it triggers layout reflow and can cause visual flicker after manual scroll
-                    }));
-                }
-                catch
-                {
-                    // ignored
-                }
             }
         }
 
-        // 构建初始文档，只在加载新文本或窗口大小改变时调用
         private void BuildInitialDocument()
         {
             var doc = new FlowDocument();
             doc.FontFamily = new System.Windows.Media.FontFamily("Google Sans Code, Consolas, HarmonyOS Sans SC, 微软雅黑");
-            doc.FontSize = 24; // 修改字体大小为24，与XAML中设置一致
+            doc.FontSize = 24;
             doc.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CCCCCC"));
 
-            // 设置行距为字体大小的1.5倍
             double lineHeight = doc.FontSize * 3;
             doc.LineHeight = lineHeight;
             doc.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
+            
+            doc.PageHeight = 1000000;
 
-            // 清空runMap，但保留已更改的字符记录
+            TypingDisplay.UpdateLayout();
+            this.UpdateLayout();
+            var ctrlPadding = TypingDisplay.Padding;
+            var border = TypingDisplay.BorderThickness;
+            double contentWidth = TypingDisplay.ActualWidth - ctrlPadding.Left - ctrlPadding.Right - border.Left - border.Right;
+            if (contentWidth <= 0)
+            {
+                contentWidth = 1250;
+            }
+            doc.PageWidth = contentWidth;
+
             _runMap.Clear();
 
-            // 构建文档
             for (int li = 0; li < _allLines.Length; li++)
             {
                 var p = new Paragraph { Margin = new Thickness(0), LineHeight = doc.LineHeight };
@@ -950,7 +999,6 @@ namespace WPF_Typing
 
                 if (line.Length == 0)
                 {
-                    // 空行处理
                     var zr = new System.Windows.Documents.Run("\u200B")
                     {
                         Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#777"))
@@ -966,7 +1014,6 @@ namespace WPF_Typing
                         string key = $"{li}:{ci}";
                         var run = new System.Windows.Documents.Run(ch.ToString());
 
-                        // 应用字符状态
                         ApplyCharacterStyle(run, li, ci, ch, key);
 
                         p.Inlines.Add(run);
@@ -977,51 +1024,69 @@ namespace WPF_Typing
                 doc.Blocks.Add(p);
             }
 
-            // 设置文档
             TypingDisplay.Document = doc;
+            
+            Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(() =>
+            {
+                TypingDisplay.UpdateLayout();
+                var ctrlPadding2 = TypingDisplay.Padding;
+                var border2 = TypingDisplay.BorderThickness;
+                double contentWidth2 = TypingDisplay.ActualWidth - ctrlPadding2.Left - ctrlPadding2.Right - border2.Left - border2.Right;
+                if (contentWidth2 > 0 && Math.Abs(contentWidth2 - contentWidth) > 1.0)
+                {
+                    doc.PageWidth = contentWidth2;
+                    TypingDisplay.UpdateLayout();
+                }
+            }));
 
-            // 设置RichTextBox高度
-            SetTypingDisplayHeight();
-
-            // 清空已更改字符集合
             _changedChars.Clear();
+            
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+            {
+                SetTypingDisplayHeight();
+            }));
         }
 
-        // 设置RichTextBox高度
         private void SetTypingDisplayHeight()
         {
             try
             {
-                if (TypingDisplay?.Document == null) return;
+                if (TypingDisplay?.Document == null || _typingScrollViewer == null) return;
 
                 var doc = TypingDisplay.Document;
+                double documentLineHeight = GetDocumentLineHeight();
+                if (documentLineHeight <= 0) return;
+
                 double docPadding = doc.PagePadding.Top + doc.PagePadding.Bottom;
                 var ctrlPadding = TypingDisplay.Padding;
                 double ctrlPad = ctrlPadding.Top + ctrlPadding.Bottom;
                 var border = TypingDisplay.BorderThickness;
                 double borderPad = border.Top + border.Bottom;
 
-                double desiredHeight = doc.LineHeight * VisibleLineCount + docPadding + ctrlPad + borderPad + 2.0;
-                TypingDisplay.Height = desiredHeight;
-
-                // 设置FlowDocument PageWidth以匹配RichTextBox的可用宽度，实现正确的文本换行
-                double contentWidth = TypingDisplay.ActualWidth - ctrlPadding.Left - ctrlPadding.Right - border.Left - border.Right;
-                if (contentWidth > 0) doc.PageWidth = contentWidth;
+                double desiredHeight = documentLineHeight * VisibleLineCount + docPadding + ctrlPad + borderPad + 2.0;
+                _typingScrollViewer.Height = desiredHeight;
+                
+                TypingDisplay.UpdateLayout();
+                
+                double contentWidth = TypingDisplay.ActualWidth - ctrlPadding.Left - ctrlPadding.Right - border.Left -
+                                      border.Right;
+                if (contentWidth > 0)
+                {
+                    doc.PageWidth = contentWidth;
+                    doc.PageHeight = 1000000;
+                    TypingDisplay.UpdateLayout();
+                }
             }
             catch
             {
-                // 忽略错误，保持现有高度
             }
         }
 
-        // 应用字符样式
         private void ApplyCharacterStyle(System.Windows.Documents.Run run, int li, int ci, char ch, string key)
         {
-            // 默认颜色
             run.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#777"));
             run.Background = null;
 
-            // 应用已输入状态
             if (_charStates.TryGetValue(key, out var state))
             {
                 if (state == CharState.Correct)
@@ -1030,22 +1095,18 @@ namespace WPF_Typing
                 }
                 else if (state == CharState.Incorrect)
                 {
-                    // 检查是否是错误输入的空格
                     if (ch == ' ')
                     {
-                        // 如果源文本是空格但输入错误，显示红色背景
                         run.Background = Brushes.IndianRed;
                         run.Foreground = Brushes.White;
                     }
                     else
                     {
-                        // 其他错误输入，显示红色前景
                         run.Foreground = Brushes.IndianRed;
                     }
                 }
             }
 
-            // 当前光标位置
             if (li == _currentLine && ci == _currentChar)
             {
                 run.Foreground = Brushes.White;
@@ -1058,6 +1119,7 @@ namespace WPF_Typing
                     catch
                     {
                     }
+
                     _currentCaretKey = key;
                 }
                 else
@@ -1068,7 +1130,6 @@ namespace WPF_Typing
             }
         }
 
-        // 只更新已更改的字符
         private void UpdateChangedCharacters()
         {
             if (_changedChars.Count == 0) return;
@@ -1077,93 +1138,146 @@ namespace WPF_Typing
             {
                 if (_runMap.TryGetValue(key, out var run))
                 {
-                    // 解析行号和字符索引
                     var parts = key.Split(':');
                     if (parts.Length == 2 &&
                         int.TryParse(parts[0], out var li) &&
                         int.TryParse(parts[1], out var ci))
                     {
-                        // 重新应用字符样式
                         ApplyCharacterStyle(run, li, ci, _allLines[li][ci], key);
                     }
                 }
             }
 
-            // 清空已更改字符集合
             _changedChars.Clear();
         }
 
-        // 更新光标位置
         private void UpdateCaretPosition()
         {
-            if (TypingDisplay == null) return;
+            if (TypingDisplay == null || _typingScrollViewer == null) return;
+            
+            if (_isScrolling) return;
 
-            // 找到当前行的垂直位置
-            double lineTop = _currentLine * GetDocumentLineHeight();
-
-            // 使用Dispatcher确保滚动在UI更新后执行
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
+            try
             {
-                // 如果用户最近手动滚动过，不要立刻强制滚动回去，避免闪烁
-                if (_isManualScroll)
+                var caretPos = TypingDisplay.CaretPosition;
+                if (caretPos == null) return;
+                
+                var rect = caretPos.GetCharacterRect(LogicalDirection.Forward);
+                
+                double lineTop = rect.Top;
+                double lineBottom = rect.Bottom;
+                
+                double currentOffset = _typingScrollViewer.VerticalOffset;
+                double visibleHeight = _typingScrollViewer.ViewportHeight;
+                
+                double documentLineHeight = GetDocumentLineHeight();
+                if (documentLineHeight <= 0) return;
+                
+                double visibleBottom = currentOffset + 5 * documentLineHeight;
+                
+                double margin = 20.0;
+                double visibleTop = currentOffset + margin;
+                
+                if (currentOffset > 0 && lineTop < visibleTop)
                 {
-                    // if the current caret is within the visible viewport, do nothing; otherwise allow auto-scroll after a short delay
-                    try
-                    {
-                        var sv = FindVisualChildren(TypingDisplay).OfType<ScrollViewer>().FirstOrDefault();
-                        if (sv != null)
-                        {
-                            double viewTop = sv.VerticalOffset;
-                            double viewBottom = sv.VerticalOffset + sv.ViewportHeight;
-                            double caretTop = lineTop;
-                            double caretBottom = lineTop + GetDocumentLineHeight();
-
-                            if (caretTop >= viewTop && caretBottom <= viewBottom)
-                            {
-                                // caret is visible; do not scroll
-                                return;
-                            }
-                            else
-                            {
-                                // caret not visible; allow scrolling and reset manual flag so subsequent updates can auto-scroll
-                                _isManualScroll = false;
-                                TypingDisplay.ScrollToVerticalOffset(lineTop);
-                                return;
-                            }
-                        }
-                    }
-                    catch
-                    {
-                        // fallback to normal scroll
-                        TypingDisplay.ScrollToVerticalOffset(lineTop);
-                    }
+                    double targetOffset = lineTop;
+                    if (targetOffset < 0) targetOffset = 0;
+                    
+                    SmoothScrollToOffset(targetOffset);
                 }
-                else
+                else if (lineTop >= currentOffset + 5 * documentLineHeight && lineBottom >= visibleBottom)
                 {
-                    TypingDisplay.ScrollToVerticalOffset(lineTop);
+                    double scrollDistance = documentLineHeight * 4;
+                    double targetOffset = currentOffset + scrollDistance;
+                    
+                    double maxOffset = _typingScrollViewer.ExtentHeight - visibleHeight;
+                    if (targetOffset > maxOffset) targetOffset = maxOffset;
+                    if (targetOffset < 0) targetOffset = 0;
+                    
+                    SmoothScrollToOffset(targetOffset);
+                    
+                    TypingDisplay.UpdateLayout();
                 }
-
-                // do not call UpdateLayout() here to avoid forcing layout/measure pass that can trigger flicker
-            }));
+            }
+            catch
+            {
+            }
         }
-        
-        // 更新或清除当前光标位置的背景（用于 GotFocus / LostFocus）
+
+        private void SmoothScrollToOffset(double targetOffset)
+        {
+            if (_typingScrollViewer == null) return;
+
+            try
+            {
+                if (_scrollTimer != null)
+                {
+                    _scrollTimer.Stop();
+                    _scrollTimer = null;
+                }
+
+                double currentOffset = _typingScrollViewer.VerticalOffset;
+                
+                if (Math.Abs(currentOffset - targetOffset) < 0.1)
+                {
+                    _typingScrollViewer.ScrollToVerticalOffset(targetOffset);
+                    return;
+                }
+
+                const int duration = 300;
+                double distance = targetOffset - currentOffset;
+                double startOffset = currentOffset;
+                DateTime startTime = DateTime.Now;
+
+                _isScrolling = true;
+
+                _scrollTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(16)
+                };
+
+                _scrollTimer.Tick += (s, e) =>
+                {
+                    double elapsed = (DateTime.Now - startTime).TotalMilliseconds;
+                    double progress = Math.Min(elapsed / duration, 1.0);
+                    
+                    if (progress >= 1.0)
+                    {
+                        _scrollTimer?.Stop();
+                        _scrollTimer = null;
+                        _typingScrollViewer.ScrollToVerticalOffset(targetOffset);
+                        _isScrolling = false;
+                    }
+                    else
+                    {
+                        double easedProgress = 1 - Math.Pow(1 - progress, 3);
+                        double scrollOffset = startOffset + distance * easedProgress;
+                        _typingScrollViewer.ScrollToVerticalOffset(scrollOffset);
+                    }
+                };
+
+                _scrollTimer.Start();
+            }
+            catch
+            {
+                _typingScrollViewer?.ScrollToVerticalOffset(targetOffset);
+                _isScrolling = false;
+            }
+        }
+
         private void UpdateCaretBackgrounds(int? line, int? charIndex)
         {
             if (line.HasValue && charIndex.HasValue)
             {
-                // 标记当前光标位置需要更新，以便在下一次 RenderVisibleLines 时应用样式
                 string key = $"{line.Value}:{charIndex.Value}";
                 _changedChars.Add(key);
 
-                // 如果之前有光标位置，也需要更新以清除旧背景
                 if (!string.IsNullOrEmpty(_currentCaretKey)) _changedChars.Add(_currentCaretKey);
 
                 RenderVisibleLines();
             }
             else
             {
-                // 清除之前的光标背景
                 if (!string.IsNullOrEmpty(_currentCaretKey))
                 {
                     _changedChars.Add(_currentCaretKey);
@@ -1173,19 +1287,35 @@ namespace WPF_Typing
             }
         }
 
-        // 获取文档中一行的高度（包括行距）
         private double GetDocumentLineHeight()
         {
+            // Prefer the FlowDocument's configured LineHeight when available; fallback to a reasonable estimate.
             if (TypingDisplay == null || TypingDisplay.Document == null) return 0;
 
-            // 估算行高：使用字体大小和行距
-            double fontSize = TypingDisplay.FontSize;
-            double lineHeight = fontSize * 1.5; // 行距为字体大小的1.5倍
+            try
+            {
+                var doc = TypingDisplay.Document;
 
-            return lineHeight;
+                // FlowDocument.LineHeight may be NaN or 0 when not explicitly set; check for a usable value.
+                if (!double.IsNaN(doc.LineHeight) && doc.LineHeight > 0)
+                {
+                    return doc.LineHeight;
+                }
+
+                // If FlowDocument doesn't provide LineHeight, prefer the document's FontSize if set.
+                double fontSize = (doc.FontSize > 0) ? doc.FontSize : TypingDisplay.FontSize;
+
+                // Use a conservative multiplier (1.5) as a fallback estimate for line height.
+                return Math.Max(1.0, fontSize * 1.5);
+            }
+            catch
+            {
+                // Fallback to TypingDisplay.FontSize-based estimate if anything goes wrong
+                double fontSize = (TypingDisplay?.FontSize > 0) ? TypingDisplay.FontSize : 12.0;
+                return Math.Max(1.0, fontSize * 1.5);
+            }
         }
 
-        // 将焦点和光标放置在当前字符位置（使用 _runMap 中的 Run）
         private void PlaceCaretAtCurrent()
         {
             if (TypingDisplay == null || _runMap.Count == 0) return;
@@ -1211,11 +1341,6 @@ namespace WPF_Typing
         {
             try
             {
-                // Mark that user scrolled manually and capture offset
-                _isManualScroll = true;
-                _manualScrollOffset = e.VerticalOffset;
-                // restart reset timer so auto-scroll resumes shortly after user stops interacting
-                try { _manualScrollResetTimer.Stop(); _manualScrollResetTimer.Start(); } catch { }
             }
             catch
             {
@@ -1223,7 +1348,6 @@ namespace WPF_Typing
             }
         }
 
-        // 查找父级窗口的所有可视化元素
         private IEnumerable<DependencyObject> FindVisualChildren(DependencyObject parent)
         {
             if (parent == null) yield break;
@@ -1236,7 +1360,6 @@ namespace WPF_Typing
                 {
                     yield return child;
 
-                    // 递归查找子元素
                     foreach (var subChild in FindVisualChildren(child))
                     {
                         yield return subChild;
@@ -1245,7 +1368,6 @@ namespace WPF_Typing
             }
         }
 
-        // 查找指定类型的父级窗口
         private TWindowType? FindParentWindow<TWindowType>(DependencyObject child) where TWindowType : Window
         {
             var parent = VisualTreeHelper.GetParent(child);
@@ -1255,28 +1377,25 @@ namespace WPF_Typing
                 {
                     return window;
                 }
+
                 parent = VisualTreeHelper.GetParent(parent);
             }
+
             return null;
         }
 
-        // 查找资源字典中的样式
         private Style FindResourceStyle(string key)
         {
-            // 尝试从应用程序级别的资源字典查找
             var style = Application.Current.Resources[key] as Style;
             if (style != null) return style;
 
-            // 尝试从窗口级别的资源字典查找
-            return this.Resources[key] as Style;
+            return this.Resources[key] as Style ?? new Style();
         }
 
-        // 查找指定文件名的资产文件（在父级文件夹的Assets文件夹中查找）
         private string FindAssetFile(string fileName)
         {
             try
             {
-                // 从当前执行路径向上查找，直到找到Assets文件夹或到达根目录
                 var dir = AppDomain.CurrentDomain.BaseDirectory;
                 while (!string.IsNullOrEmpty(dir) && dir != Path.GetPathRoot(dir))
                 {
@@ -1286,26 +1405,31 @@ namespace WPF_Typing
                     {
                         return filePath;
                     }
+
                     dir = Path.GetDirectoryName(dir);
                 }
             }
             catch
             {
-                // 忽略查找过程中的任何异常
             }
+
             return string.Empty;
         }
 
         private void TypingDisplay_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             e.Handled = true;
-            if (string.IsNullOrEmpty(e.Text)) return;
-
-            // start timer if not running
             if (!_timerRunning)
             {
                 _stopwatch.Restart();
-                try { _timer.Start(); } catch { }
+                try
+                {
+                    _timer.Start();
+                }
+                catch
+                {
+                }
+
                 _timerRunning = true;
             }
 
@@ -1357,6 +1481,7 @@ namespace WPF_Typing
                 {
                     ProgressPercent = 0.0;
                 }
+
                 if (TypedCount > 0)
                 {
                     AccuracyPercent = Math.Round((double)correctCountAfterDel / TypedCount * 100.0, 2);
@@ -1365,6 +1490,7 @@ namespace WPF_Typing
                 {
                     AccuracyPercent = 0.0;
                 }
+
                 double elapsedMinutesAfterDel = _stopwatch.Elapsed.TotalMinutes;
                 if (elapsedMinutesAfterDel > 0)
                 {
@@ -1389,8 +1515,7 @@ namespace WPF_Typing
                     if (newStartLine != _visibleStartLine)
                     {
                         _visibleStartLine = newStartLine;
-                        _needsScroll = true;
-                        _targetScrollLine = newStartLine;
+                        // Let ScrollViewer manage visual scroll; we only update internal visible-line index
                     }
                 }
 
@@ -1400,6 +1525,10 @@ namespace WPF_Typing
 
                 RenderVisibleLines();
                 PlaceCaretAtCurrent();
+                
+                Dispatcher.BeginInvoke(() => {
+                    UpdateCaretPosition();
+                });
             }
         }
 
@@ -1411,7 +1540,14 @@ namespace WPF_Typing
             if (!_timerRunning)
             {
                 _stopwatch.Restart();
-                try { _timer.Start(); } catch { }
+                try
+                {
+                    _timer.Start();
+                }
+                catch
+                {
+                }
+
                 _timerRunning = true;
             }
 
@@ -1437,6 +1573,7 @@ namespace WPF_Typing
             {
                 ProgressPercent = 0.0;
             }
+
             if (TypedCount > 0)
             {
                 AccuracyPercent = Math.Round((double)correctCount / TypedCount * 100.0, 2);
@@ -1471,24 +1608,26 @@ namespace WPF_Typing
                 double fm = finalElapsed.TotalMinutes;
                 if (fm > 0) Speed = Math.Round(TypedCount / fm, 2);
 
-                try { _timer.Stop(); } catch { }
-                try { _stopwatch.Stop(); } catch { }
+                try
+                {
+                    _timer.Stop();
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                try
+                {
+                    _stopwatch.Stop();
+                }
+                catch
+                {
+                    // ignore
+                }
+
                 _timerRunning = false;
                 _typingFinished = true;
-            }
-
-            // scrolling when caret passes visible area
-            int lastVisibleLineIndex = _visibleStartLine + VisibleLineCount - 1;
-            bool isLastCharOfLastLine = (_currentLine == lastVisibleLineIndex && _currentChar == line.Length - 1);
-            if (isLastCharOfLastLine || _currentLine >= _visibleStartLine + VisibleLineCount)
-            {
-                int newStartLine = Math.Min(_visibleStartLine + 4, Math.Max(0, _allLines.Length - VisibleLineCount));
-                if (newStartLine != _visibleStartLine)
-                {
-                    _visibleStartLine = newStartLine;
-                    _needsScroll = true;
-                    _targetScrollLine = newStartLine;
-                }
             }
 
             var newKey = $"{_currentLine}:{_currentChar}";
@@ -1496,6 +1635,10 @@ namespace WPF_Typing
 
             RenderVisibleLines();
             PlaceCaretAtCurrent();
+            
+            Dispatcher.BeginInvoke(() => {
+                UpdateCaretPosition();
+            });
         }
 
         private void AdvancePosition()
@@ -1526,20 +1669,110 @@ namespace WPF_Typing
             about.ShowDialog();
         }
 
-        // 窗口按钮事件处理程序
         private void WindowTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             try
             {
+                if (e.ClickCount == 2)
+                {
+                    ToggleMaximize();
+                    e.Handled = true;
+                    return;
+                }
+
                 if (e.LeftButton == MouseButtonState.Pressed)
                 {
-                    // allow dragging the window
-                    this.DragMove();
+                    if (_isCustomMaximized)
+                    {
+                        _isPotentialDrag = true;
+                        _isDragging = false;
+                        _dragStartPosition = e.GetPosition((UIElement)sender);
+                        _dragStartScreenPosition = PointToScreen(e.GetPosition(this));
+                        ((UIElement)sender).CaptureMouse();
+                        e.Handled = true;
+                    }
+                    else
+                    {
+                        this.DragMove();
+                    }
                 }
             }
             catch
             {
                 // ignore if DragMove fails during design-time
+            }
+        }
+
+        private void WindowTitleBar_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (_isPotentialDrag && _isCustomMaximized && e.LeftButton == MouseButtonState.Pressed)
+            {
+                var currentScreenPosition = PointToScreen(e.GetPosition(this));
+                var moveDistance = Math.Abs(currentScreenPosition.X - _dragStartScreenPosition.X) + 
+                                  Math.Abs(currentScreenPosition.Y - _dragStartScreenPosition.Y);
+                
+                if (moveDistance > 2.0)
+                {
+                    _isDragging = true;
+                    _isPotentialDrag = false;
+                    
+                    var source = PresentationSource.FromVisual(this);
+                    if (source?.CompositionTarget != null)
+                    {
+                        var transform = source.CompositionTarget.TransformToDevice;
+                        var dpiScaleX = transform.M11;
+                        var dpiScaleY = transform.M22;
+                        
+                        var workArea = SystemParameters.WorkArea;
+                        var titleBarElement = (UIElement)sender;
+                        
+                        var maximizedTitleBarWidth = workArea.Width;
+                        var workAreaLeftLogical = workArea.Left;
+                        var workAreaTopLogical = workArea.Top;
+                        
+                        var dragStartScreenX = _dragStartScreenPosition.X;
+                        var dragStartScreenY = _dragStartScreenPosition.Y;
+                        var dragStartLogicalX = dragStartScreenX / dpiScaleX;
+                        var dragStartLogicalY = dragStartScreenY / dpiScaleY;
+                        
+                        var mouseOffsetFromWorkAreaLeft = dragStartLogicalX - workAreaLeftLogical;
+                        var horizontalPercent = mouseOffsetFromWorkAreaLeft / maximizedTitleBarWidth;
+                        
+                        var verticalOffset = dragStartLogicalY - workAreaTopLogical;
+                        
+                        _isCustomMaximized = false;
+                        titleBarElement.ReleaseMouseCapture();
+                        
+                        Width = _restoreBounds.Width;
+                        Height = _restoreBounds.Height;
+                        
+                        var currentLogicalX = currentScreenPosition.X / dpiScaleX;
+                        var currentLogicalY = currentScreenPosition.Y / dpiScaleY;
+                        
+                        var mouseOffsetInRestoredTitleBar = horizontalPercent * _restoreBounds.Width;
+                        Left = currentLogicalX - mouseOffsetInRestoredTitleBar;
+                        Top = currentLogicalY - verticalOffset;
+                        
+                        if (Left < workAreaLeftLogical) Left = workAreaLeftLogical;
+                        if (Top < workAreaTopLogical) Top = workAreaTopLogical;
+                        if (Left + Width > workArea.Right) Left = workArea.Right - Width;
+                        if (Top + Height > workArea.Bottom) Top = workArea.Bottom - Height;
+                        
+                        _isDragging = false;
+                        this.DragMove();
+                    }
+                }
+            }
+        }
+
+        private void WindowTitleBar_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_isPotentialDrag || _isDragging)
+            {
+                var titleBarElement = (UIElement)sender;
+                titleBarElement.ReleaseMouseCapture();
+                _isPotentialDrag = false;
+                _isDragging = false;
             }
         }
 
@@ -1550,12 +1783,21 @@ namespace WPF_Typing
 
         private void MaximizeButton_Click(object sender, RoutedEventArgs e)
         {
-            if (this.WindowState == WindowState.Maximized)
+            ToggleMaximize();
+        }
+
+        private void ToggleMaximize()
+        {
+            if (_isCustomMaximized)
             {
-                this.WindowState = WindowState.Normal;
+                RestoreFromCustomMaximize();
             }
             else
             {
+                if (this.WindowState == WindowState.Normal)
+                {
+                    _restoreBounds = new Rect(Left, Top, Width, Height);
+                }
                 this.WindowState = WindowState.Maximized;
             }
         }
@@ -1565,7 +1807,6 @@ namespace WPF_Typing
             this.Close();
         }
 
-        // 菜单项事件处理程序
         private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
         {
             this.Close();
@@ -1596,11 +1837,23 @@ namespace WPF_Typing
             if (_isTimingEnabled)
             {
                 _startTime = DateTime.Now;
-                try { _timer.Start(); } catch { }
+                try
+                {
+                    _timer.Start();
+                }
+                catch
+                {
+                }
             }
             else
             {
-                try { _timer.Stop(); } catch { }
+                try
+                {
+                    _timer.Stop();
+                }
+                catch
+                {
+                }
             }
         }
 

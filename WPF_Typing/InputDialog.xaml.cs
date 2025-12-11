@@ -11,7 +11,6 @@ namespace WPF_Typing
         {
             InitializeComponent();
             TitleText.Text = title;
-            PromptTextBlock.Text = "请输入:";
             InputTextBox.Text = defaultValue;
         }
 

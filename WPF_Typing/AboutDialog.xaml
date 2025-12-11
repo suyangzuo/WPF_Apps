@@ -111,11 +111,11 @@
                         TextWrapping="Wrap" />
                     <TextBlock
                         FontFamily="{DynamicResource AppFontFamily}"
-                        FontSize="12"
+                        FontSize="14"
                         Foreground="#AAA"
                         HorizontalAlignment="Center"
                         Margin="0,15,0,0"
-                        Text="© 2023 WPF 打字练习" />
+                        Text="© 2025 苏扬" />
                 </StackPanel>
             </Border>
 
