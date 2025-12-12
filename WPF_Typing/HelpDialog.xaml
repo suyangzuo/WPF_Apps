@@ -94,15 +94,11 @@
                         <LineBreak />
                         <Run Text="1. 从'文本选择'菜单中选择练习文本" />
                         <LineBreak />
-                        <Run Text="2. 按照显示的文本进行打字练习" />
+                        <Run Text="2. 绿色播放按钮功能：再次载入选中的文章" />
                         <LineBreak />
-                        <Run Text="3. 正确输入的字符会显示为绿色" />
+                        <Run Text="3. 输入第一个字符时，测试自动开始" />
                         <LineBreak />
-                        <Run Text="4. 错误输入的字符会显示为红色" />
-                        <LineBreak />
-                        <Run Text="5. 可以通过'设置'菜单更改姓名和开启计时" />
-                        <LineBreak />
-                        <Run Text="6. 通过'分析'菜单查看练习统计" />
+                        <Run Text="4. 点击红色停止按钮，可结束测试" />
                     </TextBlock>
                 </ScrollViewer>
             </Border>

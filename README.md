@@ -7,7 +7,7 @@ WPF应用集合是一个基于.NET框架和Windows Presentation Foundation (WPF)
 ## 📁 解决方案结构
 
 ```
-WPF_Apps/
+WPF_应用集/
 ├── WPF_Clock/                # 桌面时钟应用
 │   ├── App.xaml              # 应用程序资源和全局样式定义
 │   ├── App.xaml.cs           # 应用程序入口点和初始化逻辑
@@ -19,6 +19,20 @@ WPF_Apps/
 │   └── Assets/               # 资源文件夹
 │       └── ICO/
 │           └── Clock.ico     # 应用程序图标
+├── WPF_Typing/               # 打字练习应用（十指禅）
+│   ├── App.xaml              # 应用程序资源和全局样式定义
+│   ├── App.xaml.cs           # 应用程序入口点和初始化逻辑
+│   ├── MainWindow.xaml       # 主窗口界面设计和布局
+│   ├── MainWindow.xaml.cs    # 主窗口功能和交互逻辑
+│   ├── AnalysisDialog.xaml   # 统计分析对话框
+│   ├── CountdownDialog.xaml  # 倒计时设置对话框
+│   ├── DialogStyles.xaml     # 对话框样式定义
+│   ├── WPF_Typing.csproj     # 项目配置文件
+│   └── Assets/               # 资源文件夹
+│       ├── ICO/
+│       │   └── 十指禅.ico    # 应用程序图标
+│       ├── Texts/             # 练习文本文件
+│       └── Images/            # 图像资源
 ├── WPF_应用集.slnx           # 解决方案文件
 └── README.md                 # 本文件，解决方案总览
 ```
@@ -41,17 +55,47 @@ WPF_Apps/
 - 完全自定义的窗口样式和控件模板
 - 资源管理和深色主题实现
 
+### 2. ⌨️ WPF_Typing - 打字练习应用（十指禅）
+
+一个专业的打字练习和统计分析应用，提供以下特性：
+
+- **多文本练习**：支持从多个分类文件夹加载练习文本（编程语言、技术文档等）
+- **实时打字反馈**：字符级别的正确/错误高亮显示
+- **倒计时功能**：可设置倒计时时长，支持定时练习
+- **实时统计**：显示打字速度、准确率、进度等实时数据
+- **统计分析**：测试结束后显示详细的统计信息
+  - 完成率、正确率、用时等基础统计
+  - 错误字符统计（预留图表功能）
+  - 速度变化曲线（预留图表功能）
+- **深色主题**：完整的深色主题界面设计
+- **自定义窗口样式**：无边框设计，自定义标题栏和按钮
+- **菜单导航**：通过多级菜单选择练习文本
+- **数据持久化**：保存窗口状态和测试者姓名
+
+**技术亮点**：
+- 使用RichTextBox实现字符级别的精确控制和高亮显示
+- 使用Stopwatch实现高精度计时
+- 使用DispatcherTimer实现UI更新和倒计时功能
+- 使用JSON文件管理练习文本列表
+- 自定义对话框样式系统（DialogStyles.xaml）
+- 支持LiveCharts2图表库（预留功能）
+- 完整的深色主题和自定义控件样式
+
 ## 🛠️ 技术栈
 
-- **.NET 10**：使用最新的.NET框架
+- **.NET 8/10**：使用.NET框架（WPF_Typing使用.NET 8，WPF_Clock使用.NET 10）
 - **WPF (Windows Presentation Foundation)**：用于构建用户界面
 - **XAML**：用于界面设计和布局
 - **C#**：用于实现应用逻辑和功能
+- **LiveCharts2**：用于数据可视化（WPF_Typing项目，预留功能）
+- **JSON**：用于配置文件和数据存储
 
 ## 💻 系统要求
 
 - **操作系统**：Windows 10/11 或更高版本
-- **运行时**：.NET 10 运行时环境
+- **运行时**：
+  - WPF_Clock：.NET 10 运行时环境
+  - WPF_Typing：.NET 8 运行时环境
 - **开发环境**：Visual Studio 2022 或更高版本
 
 ## 🔨 构建与运行
@@ -118,6 +162,12 @@ dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile
 - 发送邮件至：[您的邮箱地址]
 
 ## 📝 更新日志
+
+### v2.0.0
+- 新增WPF_Typing打字练习应用（十指禅）
+- 支持多文本练习和实时统计
+- 支持倒计时功能和详细统计分析
+- 完整的深色主题和自定义对话框系统
 
 ### v1.0.0
 - 初始版本发布
