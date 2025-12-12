@@ -3,7 +3,7 @@
     <FontFamily x:Key="DialogFontFamily">Google Sans Code, Consolas, HarmonyOS Sans SC, 微软雅黑</FontFamily>
 
     <!--  对话框确定/取消按钮样式  -->
-    <Style TargetType="Button" x:Key="DialogOkButtonStyle">
+    <Style x:Key="DialogOkButtonStyle" TargetType="Button">
         <Setter Property="OverridesDefaultStyle" Value="True" />
         <Setter Property="Background" Value="#2D2D2D" />
         <Setter Property="Foreground" Value="#FFFFFF" />
@@ -18,37 +18,37 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border
+                        x:Name="Bd"
+                        Padding="{TemplateBinding Padding}"
                         Background="{TemplateBinding Background}"
                         BorderBrush="{TemplateBinding BorderBrush}"
                         BorderThickness="{TemplateBinding BorderThickness}"
-                        CornerRadius="4"
-                        Padding="{TemplateBinding Padding}"
-                        x:Name="Bd">
+                        CornerRadius="4">
                         <ContentPresenter
                             HorizontalAlignment="Center"
-                            RecognizesAccessKey="True"
-                            VerticalAlignment="Center" />
+                            VerticalAlignment="Center"
+                            RecognizesAccessKey="True" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <!--  悬停背景色  -->
-                            <Setter Property="Background" TargetName="Bd" Value="#37F" />
-                            <Setter Property="BorderThickness" TargetName="Bd" Value="0" />
+                            <Setter TargetName="Bd" Property="Background" Value="#37F" />
+                            <Setter TargetName="Bd" Property="BorderThickness" Value="0" />
                             <!--  悬停边框色  -->
-                            <Setter Property="BorderBrush" TargetName="Bd" Value="#37F" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#37F" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter Property="Background" TargetName="Bd" Value="#3060E0" />
-                            <Setter Property="BorderBrush" TargetName="Bd" Value="#5080E0" />
+                            <Setter TargetName="Bd" Property="Background" Value="#3060E0" />
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="#5080E0" />
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter Property="Background" TargetName="Bd" Value="#333333" />
+                            <Setter TargetName="Bd" Property="Background" Value="#333333" />
                         </Trigger>
                         <Trigger Property="IsFocused" Value="True">
-                            <Setter Property="Background" TargetName="Bd" Value="#333333" />
+                            <Setter TargetName="Bd" Property="Background" Value="#333333" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
-                            <Setter Property="Opacity" TargetName="Bd" Value="0.5" />
+                            <Setter TargetName="Bd" Property="Opacity" Value="0.5" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -57,7 +57,7 @@
     </Style>
 
     <!--  对话框关闭按钮样式  -->
-    <Style TargetType="Button" x:Key="DialogCloseButtonStyle">
+    <Style x:Key="DialogCloseButtonStyle" TargetType="Button">
         <Setter Property="OverridesDefaultStyle" Value="True" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Foreground" Value="#FFFFFF" />
@@ -69,31 +69,31 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
                     <Border
-Background="{TemplateBinding Background}"
-CornerRadius="0"
-x:Name="bd">
+                        x:Name="bd"
+                        Background="{TemplateBinding Background}"
+                        CornerRadius="0">
                         <Viewbox
-Height="12"
-HorizontalAlignment="Center"
-VerticalAlignment="Center"
-Width="12">
-                            <Canvas Height="12" Width="12">
+                            Width="12"
+                            Height="12"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                            <Canvas Width="12" Height="12">
                                 <Path
-Data="M2,2 L10,10 M10,2 L2,10"
-Stroke="White"
-StrokeEndLineCap="Round"
-StrokeStartLineCap="Round"
-StrokeThickness="1.6" />
+                                    Data="M2,2 L10,10 M10,2 L2,10"
+                                    Stroke="White"
+                                    StrokeEndLineCap="Round"
+                                    StrokeStartLineCap="Round"
+                                    StrokeThickness="1.6" />
                             </Canvas>
                         </Viewbox>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <!--  关闭按钮悬停背景色  -->
-                            <Setter Property="Background" TargetName="bd" Value="#E81123" />
+                            <Setter TargetName="bd" Property="Background" Value="#E81123" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter Property="Background" TargetName="bd" Value="#C50F1F" />
+                            <Setter TargetName="bd" Property="Background" Value="#C50F1F" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -102,26 +102,83 @@ StrokeThickness="1.6" />
     </Style>
 
     <!--  对话框文本框样式  -->
-    <Style TargetType="TextBox" x:Key="DialogTextBoxStyle">
+    <Style x:Key="DialogTextBoxStyle" TargetType="TextBox">
         <Setter Property="Background" Value="#2D2D2D" />
         <Setter Property="Foreground" Value="#EEE" />
         <Setter Property="BorderBrush" Value="#555" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="Padding" Value="6" />
-        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Padding" Value="4" />
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="FontFamily" Value="Google Sans Code, Consolas, HarmonyOS Sans SC, 微软雅黑" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
                     <Border
-Background="{TemplateBinding Background}"
-BorderBrush="{TemplateBinding BorderBrush}"
-BorderThickness="{TemplateBinding BorderThickness}"
-CornerRadius="4"
-Padding="{TemplateBinding Padding}">
-                        <ScrollViewer VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}"
-x:Name="PART_ContentHost" />
+                        Padding="{TemplateBinding Padding}"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="4">
+                        <ScrollViewer x:Name="PART_ContentHost" VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
                     </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+        <Style.Triggers>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter Property="BorderBrush" Value="Silver" />
+            </Trigger>
+            <Trigger Property="IsFocused" Value="True">
+                <Setter Property="BorderBrush" Value="Silver" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <!--  对话框复选框样式（深色）  -->
+    <Style x:Key="DialogCheckBoxStyle" TargetType="CheckBox">
+        <Setter Property="Foreground" Value="#DDD" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="FontFamily" Value="{StaticResource DialogFontFamily}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <!-- 让整个区域可点击（含图标与间隔），背景设为透明以参与命中测试 -->
+                    <StackPanel Orientation="Horizontal" Background="Transparent">
+                        <Grid Margin="0,0,8,0" Width="16" Height="16" Background="Transparent">
+                            <Border
+                                x:Name="Box"
+                                Background="#2D2D2D"
+                                BorderBrush="#555"
+                                BorderThickness="1"
+                                CornerRadius="3" />
+                            <Path
+                                x:Name="CheckMark"
+                                Data="M4,8 L7,11 L12,5"
+                                Stroke="White"
+                                StrokeThickness="2"
+                                StrokeLineJoin="Round"
+                                StrokeEndLineCap="Round"
+                                StrokeStartLineCap="Round"
+                                Visibility="Collapsed" />
+                        </Grid>
+                        <ContentPresenter VerticalAlignment="Center" />
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Box" Property="BorderBrush" Value="#37F" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Box" Property="Background" Value="#37F" />
+                            <Setter TargetName="Box" Property="BorderBrush" Value="#37F" />
+                            <Setter TargetName="CheckMark" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Box" Property="Opacity" Value="0.4" />
+                            <Setter Property="Foreground" Value="#777" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

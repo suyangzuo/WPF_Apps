@@ -59,6 +59,9 @@ namespace WPF_Typing
         // Current tester name (default)
         private string _testerName = "江湖人士";
 
+        // Current selected article path
+        private string? _currentArticlePath = null;
+
         public string TesterName
         {
             get => _testerName;
@@ -100,6 +103,59 @@ namespace WPF_Typing
         private bool _isTimingEnabled = false;
         private DateTime _startTime;
         private System.Windows.Threading.DispatcherTimer _timer = new System.Windows.Threading.DispatcherTimer();
+
+        // Countdown configuration
+        private bool _countdownEnabled = false;
+        private bool _countdownActive = false;
+        private TimeSpan _countdownDuration = TimeSpan.FromMinutes(1);
+        private TimeSpan _countdownRemaining = TimeSpan.Zero;
+        private DateTime? _countdownEndTime = null;
+
+        private void StartTimingIfNeeded()
+        {
+            if (_timerRunning) return;
+
+            _stopwatch.Restart();
+            if (_countdownEnabled)
+            {
+                _countdownRemaining = _countdownDuration;
+                _countdownEndTime = DateTime.Now + _countdownDuration;
+                _countdownActive = true;
+            }
+
+            TestStartTime = DateTime.Now;
+            UpdateElapsedDisplay();
+
+            try
+            {
+                _timer.Start();
+            }
+            catch
+            {
+            }
+
+            _timerRunning = true;
+            UpdatePlayStopButtonState();
+        }
+
+        private void UpdateElapsedDisplay()
+        {
+            var elapsed = _stopwatch.Elapsed;
+
+            ElapsedHours = elapsed.Hours;
+            ElapsedMinutes = elapsed.Minutes;
+            ElapsedSeconds = elapsed.Seconds;
+
+            double minutes = elapsed.TotalMinutes;
+            if (minutes > 0)
+            {
+                Speed = Math.Round(TypedCount / minutes, 2);
+            }
+            else
+            {
+                Speed = TypedCount;
+            }
+        }
 
         // ---- Typing stats properties (bound to UI) ----
         private int _typedCount = 0;
@@ -225,9 +281,54 @@ namespace WPF_Typing
         // whether the typing run has finished (user typed the very last character)
         private bool _typingFinished = false;
 
+        private DateTime? _testStartTime = null;
+
+        public DateTime? TestStartTime
+        {
+            get => _testStartTime;
+            private set
+            {
+                if (_testStartTime != value)
+                {
+                    _testStartTime = value;
+                    OnPropertyChanged(nameof(TestStartTime));
+                    OnPropertyChanged(nameof(TestStartTimeHours));
+                    OnPropertyChanged(nameof(TestStartTimeMinutes));
+                    OnPropertyChanged(nameof(TestStartTimeSeconds));
+                }
+            }
+        }
+
+        public int TestStartTimeHours => _testStartTime?.Hour ?? 0;
+        public int TestStartTimeMinutes => _testStartTime?.Minute ?? 0;
+        public int TestStartTimeSeconds => _testStartTime?.Second ?? 0;
+
+        private DateTime? _testEndTime = null;
+
+        public DateTime? TestEndTime
+        {
+            get => _testEndTime;
+            private set
+            {
+                if (_testEndTime != value)
+                {
+                    _testEndTime = value;
+                    OnPropertyChanged(nameof(TestEndTime));
+                    OnPropertyChanged(nameof(TestEndTimeHours));
+                    OnPropertyChanged(nameof(TestEndTimeMinutes));
+                    OnPropertyChanged(nameof(TestEndTimeSeconds));
+                }
+            }
+        }
+
+        public int TestEndTimeHours => _testEndTime?.Hour ?? 0;
+        public int TestEndTimeMinutes => _testEndTime?.Minute ?? 0;
+        public int TestEndTimeSeconds => _testEndTime?.Second ?? 0;
+
         private void InitializeTimer()
         {
-            _timer.Interval = TimeSpan.FromSeconds(1);
+            // Use a short tick to keep UI updates responsive while the actual timing comes from Stopwatch.
+            _timer.Interval = TimeSpan.FromMilliseconds(100);
             _timer.Tick += Timer_Tick;
         }
 
@@ -236,6 +337,35 @@ namespace WPF_Typing
             if (!_timerRunning) return;
             try
             {
+                if (_countdownActive)
+                {
+                    if (_countdownEndTime.HasValue)
+                    {
+                        var remaining = _countdownEndTime.Value - DateTime.Now;
+                        if (remaining <= TimeSpan.Zero)
+                        {
+                            _countdownRemaining = TimeSpan.Zero;
+                            HandleCountdownFinished();
+                            return;
+                        }
+                        else
+                        {
+                            _countdownRemaining = remaining;
+                        }
+                    }
+                    else
+                    {
+                        // fallback to tick-based decrement if end time missing
+                        _countdownRemaining = _countdownRemaining - TimeSpan.FromSeconds(1);
+                        if (_countdownRemaining <= TimeSpan.Zero)
+                        {
+                            _countdownRemaining = TimeSpan.Zero;
+                            HandleCountdownFinished();
+                            return;
+                        }
+                    }
+                }
+
                 var elapsed = _stopwatch.Elapsed; // use stopwatch for higher precision
 
                 ElapsedHours = elapsed.Hours;
@@ -256,6 +386,51 @@ namespace WPF_Typing
             {
                 // ignore transient update errors
             }
+        }
+
+        private void HandleCountdownFinished()
+        {
+            _countdownActive = false;
+            _typingFinished = true;
+
+            try
+            {
+                _timer.Stop();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                _stopwatch.Stop();
+            }
+            catch
+            {
+            }
+
+            _timerRunning = false;
+            UpdatePlayStopButtonState();
+
+            // 固定显示倒计时全长作为用时
+            var elapsed = _countdownDuration;
+            ElapsedHours = elapsed.Hours;
+            ElapsedMinutes = elapsed.Minutes;
+            ElapsedSeconds = elapsed.Seconds;
+            double fm = elapsed.TotalMinutes;
+            if (fm > 0) Speed = Math.Round(TypedCount / fm, 2);
+            _countdownEndTime = null;
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var dlg = new DarkDialog
+                {
+                    Owner = this,
+                    DialogTitle = "提示",
+                    DialogMessage = "倒计时结束，输入已停止。"
+                };
+                dlg.ShowDialog();
+            }));
         }
 
         private void ShowAnalysis()
@@ -355,6 +530,7 @@ namespace WPF_Typing
                 {
                     _restoreBounds = new Rect(Left, Top, Width, Height);
                 }
+
                 WindowState = WindowState.Normal;
                 ApplyCustomMaximize();
             }
@@ -372,6 +548,7 @@ namespace WPF_Typing
                 {
                     _restoreBounds = new Rect(Left, Top, Width, Height);
                 }
+
                 _isCustomMaximized = true;
 
                 var workArea = SystemParameters.WorkArea;
@@ -401,6 +578,9 @@ namespace WPF_Typing
             // Restore window position and size if available
             TryRestoreWindowState();
 
+            // Initialize play/stop button state
+            UpdatePlayStopButtonState();
+
             // Populate text selection menu
             PopulateTextSelectionMenu();
 
@@ -425,18 +605,15 @@ namespace WPF_Typing
                     TypingDisplay.SizeChanged += TypingDisplay_SizeChanged;
                     TypingDisplay.GotFocus += (s, ev) => UpdateCaretBackgrounds(_currentLine, _currentChar);
                     TypingDisplay.LostFocus += (s, ev) => UpdateCaretBackgrounds(null, null);
-                    
-                    TypingDisplay.RequestBringIntoView += (sender, e) =>
-                    {
-                        e.Handled = true;
-                    };
-                    
+
+                    TypingDisplay.RequestBringIntoView += (sender, e) => { e.Handled = true; };
+
                     if (TypingDisplayScrollViewer != null)
                     {
                         _typingScrollViewer = TypingDisplayScrollViewer;
-                        
+
                         _typingScrollViewer.PreviewMouseWheel += (ss, ee) => ee.Handled = true;
-                        
+
                         _typingScrollViewer.ScrollChanged += TypingDisplay_ScrollChanged;
                     }
                 }
@@ -465,7 +642,7 @@ namespace WPF_Typing
                 {
                     _sizeChangedTimer?.Stop();
                     _sizeChangedTimer = null;
-                    
+
                     try
                     {
                         _needsFullRebuild = true;
@@ -812,16 +989,27 @@ namespace WPF_Typing
         {
             if (sender is MenuItem mi && mi.Tag is string path)
             {
+                // save current article path
+                _currentArticlePath = path;
+
                 // load the text file into typing area
                 LoadTextFromFile(path);
 
                 // update menu selection visuals: mark this item and its parents as selected (change background)
                 ClearTextSelectionChecks();
-                mi.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#333"));
+                
+                // 高亮当前选中的三级菜单项（文本文件名）
+                var highlightColor = (Color)ColorConverter.ConvertFromString("#495569"); // 蓝色高亮
+                mi.Background = new SolidColorBrush(highlightColor);
+                
+                // 高亮父菜单项（二级菜单，文件夹名）
                 if (mi.Parent is MenuItem parent)
                 {
-                    parent.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2A2A2A"));
+                    parent.Background = new SolidColorBrush(highlightColor);
                 }
+
+                // update play/stop button state
+                UpdatePlayStopButtonState();
             }
         }
 
@@ -839,10 +1027,15 @@ namespace WPF_Typing
             {
                 if (item is MenuItem mi)
                 {
-                    mi.Background = Brushes.Transparent;
+                    // 重置二级菜单项背景（SubMenuHeaderStyle 默认是 Transparent）
+                    mi.ClearValue(MenuItem.BackgroundProperty);
+                    // 重置三级菜单项背景（DarkSubMenuItemStyle 默认是 #2D2D2D）
                     foreach (var child in mi.Items)
                     {
-                        if (child is MenuItem cmi) cmi.Background = Brushes.Transparent;
+                        if (child is MenuItem cmi) 
+                        {
+                            cmi.ClearValue(MenuItem.BackgroundProperty);
+                        }
                     }
                 }
             }
@@ -864,6 +1057,7 @@ namespace WPF_Typing
                 if (File.Exists(actualPath))
                 {
                     var text = File.ReadAllText(actualPath, Encoding.UTF8);
+                    text = text.Trim(); // 先去掉首尾空白，避免多余空格影响后续处理
                     text = text.Replace("\r\n", " ").Replace('\r', ' ').Replace('\n', ' ');
                     text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ");
                     _allLines = new[] { text };
@@ -875,6 +1069,7 @@ namespace WPF_Typing
                     if (txts.Length > 0)
                     {
                         var text = File.ReadAllText(txts[0], Encoding.UTF8);
+                        text = text.Trim(); // 先去掉首尾空白，避免多余空格影响后续处理
                         text = text.Replace("\r\n", " ").Replace('\r', ' ').Replace('\n', ' ');
                         text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ");
                         _allLines = new[] { text };
@@ -899,6 +1094,11 @@ namespace WPF_Typing
                 _needsFullRebuild = true;
                 _stopwatch.Reset();
                 _timerRunning = false;
+                _countdownActive = false;
+                _countdownRemaining = _countdownDuration;
+                _countdownEndTime = null;
+                TestStartTime = null;
+                TestEndTime = null;
 
                 // initialize typing stats
                 TotalCount = _allLines.Sum(s => (s ?? string.Empty).Length);
@@ -922,15 +1122,16 @@ namespace WPF_Typing
 
                 if (_typingScrollViewer != null)
                 {
-                    Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
-                    {
-                        _typingScrollViewer.ScrollToVerticalOffset(0);
-                    }));
+                    Dispatcher.BeginInvoke(DispatcherPriority.Loaded,
+                        new Action(() => { _typingScrollViewer.ScrollToVerticalOffset(0); }));
                 }
 
                 // focus and place caret at the current character (start)
                 TypingDisplay.Focus();
                 PlaceCaretAtCurrent();
+
+                // update play/stop button state
+                UpdatePlayStopButtonState();
             }
             catch (Exception ex)
             {
@@ -976,18 +1177,20 @@ namespace WPF_Typing
             double lineHeight = doc.FontSize * 3;
             doc.LineHeight = lineHeight;
             doc.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
-            
+
             doc.PageHeight = 1000000;
 
             TypingDisplay.UpdateLayout();
             this.UpdateLayout();
             var ctrlPadding = TypingDisplay.Padding;
             var border = TypingDisplay.BorderThickness;
-            double contentWidth = TypingDisplay.ActualWidth - ctrlPadding.Left - ctrlPadding.Right - border.Left - border.Right;
+            double contentWidth = TypingDisplay.ActualWidth - ctrlPadding.Left - ctrlPadding.Right - border.Left -
+                                  border.Right;
             if (contentWidth <= 0)
             {
                 contentWidth = 1250;
             }
+
             doc.PageWidth = contentWidth;
 
             _runMap.Clear();
@@ -1025,13 +1228,14 @@ namespace WPF_Typing
             }
 
             TypingDisplay.Document = doc;
-            
+
             Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(() =>
             {
                 TypingDisplay.UpdateLayout();
                 var ctrlPadding2 = TypingDisplay.Padding;
                 var border2 = TypingDisplay.BorderThickness;
-                double contentWidth2 = TypingDisplay.ActualWidth - ctrlPadding2.Left - ctrlPadding2.Right - border2.Left - border2.Right;
+                double contentWidth2 = TypingDisplay.ActualWidth - ctrlPadding2.Left - ctrlPadding2.Right -
+                                       border2.Left - border2.Right;
                 if (contentWidth2 > 0 && Math.Abs(contentWidth2 - contentWidth) > 1.0)
                 {
                     doc.PageWidth = contentWidth2;
@@ -1040,11 +1244,8 @@ namespace WPF_Typing
             }));
 
             _changedChars.Clear();
-            
-            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
-            {
-                SetTypingDisplayHeight();
-            }));
+
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => { SetTypingDisplayHeight(); }));
         }
 
         private void SetTypingDisplayHeight()
@@ -1065,9 +1266,9 @@ namespace WPF_Typing
 
                 double desiredHeight = documentLineHeight * VisibleLineCount + docPadding + ctrlPad + borderPad + 2.0;
                 _typingScrollViewer.Height = desiredHeight;
-                
+
                 TypingDisplay.UpdateLayout();
-                
+
                 double contentWidth = TypingDisplay.ActualWidth - ctrlPadding.Left - ctrlPadding.Right - border.Left -
                                       border.Right;
                 if (contentWidth > 0)
@@ -1154,48 +1355,48 @@ namespace WPF_Typing
         private void UpdateCaretPosition()
         {
             if (TypingDisplay == null || _typingScrollViewer == null) return;
-            
+
             if (_isScrolling) return;
 
             try
             {
                 var caretPos = TypingDisplay.CaretPosition;
                 if (caretPos == null) return;
-                
+
                 var rect = caretPos.GetCharacterRect(LogicalDirection.Forward);
-                
+
                 double lineTop = rect.Top;
                 double lineBottom = rect.Bottom;
-                
+
                 double currentOffset = _typingScrollViewer.VerticalOffset;
                 double visibleHeight = _typingScrollViewer.ViewportHeight;
-                
+
                 double documentLineHeight = GetDocumentLineHeight();
                 if (documentLineHeight <= 0) return;
-                
+
                 double visibleBottom = currentOffset + 5 * documentLineHeight;
-                
+
                 double margin = 20.0;
                 double visibleTop = currentOffset + margin;
-                
+
                 if (currentOffset > 0 && lineTop < visibleTop)
                 {
                     double targetOffset = lineTop;
                     if (targetOffset < 0) targetOffset = 0;
-                    
+
                     SmoothScrollToOffset(targetOffset);
                 }
                 else if (lineTop >= currentOffset + 5 * documentLineHeight && lineBottom >= visibleBottom)
                 {
                     double scrollDistance = documentLineHeight * 4;
                     double targetOffset = currentOffset + scrollDistance;
-                    
+
                     double maxOffset = _typingScrollViewer.ExtentHeight - visibleHeight;
                     if (targetOffset > maxOffset) targetOffset = maxOffset;
                     if (targetOffset < 0) targetOffset = 0;
-                    
+
                     SmoothScrollToOffset(targetOffset);
-                    
+
                     TypingDisplay.UpdateLayout();
                 }
             }
@@ -1217,7 +1418,7 @@ namespace WPF_Typing
                 }
 
                 double currentOffset = _typingScrollViewer.VerticalOffset;
-                
+
                 if (Math.Abs(currentOffset - targetOffset) < 0.1)
                 {
                     _typingScrollViewer.ScrollToVerticalOffset(targetOffset);
@@ -1240,7 +1441,7 @@ namespace WPF_Typing
                 {
                     double elapsed = (DateTime.Now - startTime).TotalMilliseconds;
                     double progress = Math.Min(elapsed / duration, 1.0);
-                    
+
                     if (progress >= 1.0)
                     {
                         _scrollTimer?.Stop();
@@ -1422,6 +1623,12 @@ namespace WPF_Typing
             if (!_timerRunning)
             {
                 _stopwatch.Restart();
+                if (_countdownEnabled)
+                {
+                    _countdownRemaining = _countdownDuration;
+                    _countdownActive = true;
+                }
+
                 try
                 {
                     _timer.Start();
@@ -1431,6 +1638,7 @@ namespace WPF_Typing
                 }
 
                 _timerRunning = true;
+                UpdatePlayStopButtonState();
             }
 
             if (_allLines.Length == 0) return;
@@ -1525,10 +1733,8 @@ namespace WPF_Typing
 
                 RenderVisibleLines();
                 PlaceCaretAtCurrent();
-                
-                Dispatcher.BeginInvoke(() => {
-                    UpdateCaretPosition();
-                });
+
+                Dispatcher.BeginInvoke(() => { UpdateCaretPosition(); });
             }
         }
 
@@ -1540,6 +1746,14 @@ namespace WPF_Typing
             if (!_timerRunning)
             {
                 _stopwatch.Restart();
+                if (_countdownEnabled)
+                {
+                    _countdownRemaining = _countdownDuration;
+                    _countdownEndTime = DateTime.Now + _countdownDuration;
+                    _countdownActive = true;
+                }
+
+                TestStartTime = DateTime.Now;
                 try
                 {
                     _timer.Start();
@@ -1549,6 +1763,7 @@ namespace WPF_Typing
                 }
 
                 _timerRunning = true;
+                UpdatePlayStopButtonState();
             }
 
             if (_allLines.Length == 0) return;
@@ -1584,14 +1799,7 @@ namespace WPF_Typing
             }
 
             double elapsedMinutes = _stopwatch.Elapsed.TotalMinutes;
-            if (elapsedMinutes > 0)
-            {
-                Speed = Math.Round(TypedCount / elapsedMinutes, 2);
-            }
-            else
-            {
-                Speed = TypedCount;
-            }
+            UpdateElapsedDisplay();
 
             // detect last char of document
             bool isLastCharOfDocument = (_currentLine == _allLines.Length - 1 && _currentChar == line.Length - 1);
@@ -1607,6 +1815,9 @@ namespace WPF_Typing
                 ElapsedSeconds = finalElapsed.Seconds;
                 double fm = finalElapsed.TotalMinutes;
                 if (fm > 0) Speed = Math.Round(TypedCount / fm, 2);
+
+                TestEndTime = DateTime.Now;
+                _countdownActive = false;
 
                 try
                 {
@@ -1628,6 +1839,7 @@ namespace WPF_Typing
 
                 _timerRunning = false;
                 _typingFinished = true;
+                UpdatePlayStopButtonState();
             }
 
             var newKey = $"{_currentLine}:{_currentChar}";
@@ -1635,10 +1847,8 @@ namespace WPF_Typing
 
             RenderVisibleLines();
             PlaceCaretAtCurrent();
-            
-            Dispatcher.BeginInvoke(() => {
-                UpdateCaretPosition();
-            });
+
+            Dispatcher.BeginInvoke(() => { UpdateCaretPosition(); });
         }
 
         private void AdvancePosition()
@@ -1708,56 +1918,56 @@ namespace WPF_Typing
             if (_isPotentialDrag && _isCustomMaximized && e.LeftButton == MouseButtonState.Pressed)
             {
                 var currentScreenPosition = PointToScreen(e.GetPosition(this));
-                var moveDistance = Math.Abs(currentScreenPosition.X - _dragStartScreenPosition.X) + 
-                                  Math.Abs(currentScreenPosition.Y - _dragStartScreenPosition.Y);
-                
+                var moveDistance = Math.Abs(currentScreenPosition.X - _dragStartScreenPosition.X) +
+                                   Math.Abs(currentScreenPosition.Y - _dragStartScreenPosition.Y);
+
                 if (moveDistance > 2.0)
                 {
                     _isDragging = true;
                     _isPotentialDrag = false;
-                    
+
                     var source = PresentationSource.FromVisual(this);
                     if (source?.CompositionTarget != null)
                     {
                         var transform = source.CompositionTarget.TransformToDevice;
                         var dpiScaleX = transform.M11;
                         var dpiScaleY = transform.M22;
-                        
+
                         var workArea = SystemParameters.WorkArea;
                         var titleBarElement = (UIElement)sender;
-                        
+
                         var maximizedTitleBarWidth = workArea.Width;
                         var workAreaLeftLogical = workArea.Left;
                         var workAreaTopLogical = workArea.Top;
-                        
+
                         var dragStartScreenX = _dragStartScreenPosition.X;
                         var dragStartScreenY = _dragStartScreenPosition.Y;
                         var dragStartLogicalX = dragStartScreenX / dpiScaleX;
                         var dragStartLogicalY = dragStartScreenY / dpiScaleY;
-                        
+
                         var mouseOffsetFromWorkAreaLeft = dragStartLogicalX - workAreaLeftLogical;
                         var horizontalPercent = mouseOffsetFromWorkAreaLeft / maximizedTitleBarWidth;
-                        
+
                         var verticalOffset = dragStartLogicalY - workAreaTopLogical;
-                        
+
                         _isCustomMaximized = false;
                         titleBarElement.ReleaseMouseCapture();
-                        
+
                         Width = _restoreBounds.Width;
                         Height = _restoreBounds.Height;
-                        
+
                         var currentLogicalX = currentScreenPosition.X / dpiScaleX;
                         var currentLogicalY = currentScreenPosition.Y / dpiScaleY;
-                        
+
                         var mouseOffsetInRestoredTitleBar = horizontalPercent * _restoreBounds.Width;
                         Left = currentLogicalX - mouseOffsetInRestoredTitleBar;
                         Top = currentLogicalY - verticalOffset;
-                        
+
                         if (Left < workAreaLeftLogical) Left = workAreaLeftLogical;
                         if (Top < workAreaTopLogical) Top = workAreaTopLogical;
                         if (Left + Width > workArea.Right) Left = workArea.Right - Width;
                         if (Top + Height > workArea.Bottom) Top = workArea.Bottom - Height;
-                        
+
                         _isDragging = false;
                         this.DragMove();
                     }
@@ -1798,6 +2008,7 @@ namespace WPF_Typing
                 {
                     _restoreBounds = new Rect(Left, Top, Width, Height);
                 }
+
                 this.WindowState = WindowState.Maximized;
             }
         }
@@ -1833,27 +2044,21 @@ namespace WPF_Typing
 
         private void TimingMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            _isTimingEnabled = !_isTimingEnabled;
-            if (_isTimingEnabled)
+            var dlg = new CountdownDialog(_countdownDuration, _countdownEnabled)
             {
+                Owner = this
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                _countdownDuration = dlg.CountdownDuration;
+                _countdownEnabled = dlg.EnableCountdown;
+                _countdownRemaining = _countdownDuration;
+                _countdownActive = false;
+
+                // 保持计时功能启用，使用 StartTime 记录基准
+                _isTimingEnabled = _countdownEnabled;
                 _startTime = DateTime.Now;
-                try
-                {
-                    _timer.Start();
-                }
-                catch
-                {
-                }
-            }
-            else
-            {
-                try
-                {
-                    _timer.Stop();
-                }
-                catch
-                {
-                }
             }
         }
 
@@ -1872,6 +2077,92 @@ namespace WPF_Typing
             }
             catch
             {
+            }
+        }
+
+        private void PlayStopButton_Click(object sender, RoutedEventArgs e)
+        {
+            // 如果未选中任何文章，点击不产生作用
+            if (string.IsNullOrEmpty(_currentArticlePath))
+            {
+                return;
+            }
+
+            // 如果测试正在进行，停止测试
+            if (_timerRunning)
+            {
+                StopTest();
+            }
+            // 如果测试已结束，重新载入当前文章
+            else if (_typingFinished)
+            {
+                LoadTextFromFile(_currentArticlePath);
+            }
+        }
+
+        private void StopTest()
+        {
+            _typingFinished = true;
+            _timerRunning = false;
+            _countdownActive = false;
+
+            try
+            {
+                _timer.Stop();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                _stopwatch.Stop();
+            }
+            catch
+            {
+            }
+
+            TestEndTime = DateTime.Now;
+            UpdatePlayStopButtonState();
+        }
+
+        private void UpdatePlayStopButtonState()
+        {
+            if (PlayStopButton == null) return;
+
+            // 确保在 UI 线程上执行
+            if (!Dispatcher.CheckAccess())
+            {
+                Dispatcher.Invoke(() => UpdatePlayStopButtonState());
+                return;
+            }
+
+            try
+            {
+                if (_timerRunning)
+                {
+                    // 测试正在进行：红色背景，停止图标
+                    var stopStyle = (Style)FindResource("StopButtonStyle");
+                    if (stopStyle != null)
+                    {
+                        PlayStopButton.Style = stopStyle;
+                    }
+                    PlayStopButton.Content = "■";
+                }
+                else
+                {
+                    // 测试未进行：绿色背景，播放图标
+                    var playStyle = (Style)FindResource("PlayButtonStyle");
+                    if (playStyle != null)
+                    {
+                        PlayStopButton.Style = playStyle;
+                    }
+                    PlayStopButton.Content = "▶";
+                }
+            }
+            catch
+            {
+                // 忽略样式设置错误
             }
         }
     }

@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Window
+  x:Class="WPF_Typing.CountdownDialog"
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  Title="CountdownDialog"
+  Width="430"
+  Height="260"
+  AllowsTransparency="True"
+  Background="Transparent"
+  FontFamily="{DynamicResource AppFontFamily}"
+  ResizeMode="NoResize"
+  ShowInTaskbar="False"
+  WindowStartupLocation="CenterOwner"
+  WindowStyle="None">
+
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="DialogStyles.xaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+
+  <Border
+    Padding="0"
+    Background="#1E1E1E"
+    BorderBrush="#444"
+    BorderThickness="1"
+    CornerRadius="8">
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <!--  标题栏  -->
+      <Border
+        Grid.Row="0"
+        Padding="8"
+        Background="#303030"
+        CornerRadius="8,8,0,0"
+        MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+
+          <TextBlock
+            Margin="0,0,8,0"
+            VerticalAlignment="Center"
+            FontSize="16"
+            Foreground="#00CED1"
+            Text="⏱️" />
+
+          <TextBlock
+            x:Name="TitleText"
+            Grid.Column="1"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Center"
+            FontSize="14"
+            FontWeight="Bold"
+            Foreground="#EEE"
+            Text="倒计时设置" />
+
+          <Button
+            x:Name="CloseTopButton"
+            Grid.Column="2"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Center"
+            Click="CloseButton_Click"
+            Style="{StaticResource DialogCloseButtonStyle}"
+            ToolTip="关闭" />
+        </Grid>
+      </Border>
+
+      <!--  内容区域  -->
+      <ScrollViewer
+        Grid.Row="1"
+        Margin="12"
+        VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="0,15,0,0">
+          <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
+            <StackPanel Width="90" Margin="0,0,8,0">
+              <TextBlock
+                Margin="4,0,0,10"
+                FontSize="12"
+                Foreground="#AAA"
+                Text="小时" />
+              <TextBox
+                x:Name="HoursBox"
+                FontSize="14"
+                Style="{StaticResource DialogTextBoxStyle}"
+                Text="{Binding HoursText, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Width="90" Margin="0,0,8,0">
+              <TextBlock
+                Margin="4,0,0,10"
+                FontSize="12"
+                Foreground="#AAA"
+                Text="分钟" />
+              <TextBox
+                x:Name="MinutesBox"
+                FontSize="14"
+                Style="{StaticResource DialogTextBoxStyle}"
+                Text="{Binding MinutesText, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <StackPanel Width="90">
+              <TextBlock
+                Margin="4,0,0,10"
+                FontSize="12"
+                Foreground="#AAA"
+                Text="秒" />
+              <TextBox
+                x:Name="SecondsBox"
+                FontSize="14"
+                Style="{StaticResource DialogTextBoxStyle}"
+                Text="{Binding SecondsText, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+            <CheckBox
+              x:Name="EnableCheckBox"
+              Margin="35,14,0,25"
+              Content="倒计时"
+              FontSize="13"
+              Foreground="#DDD"
+              VerticalAlignment="Bottom"
+              Height="60"
+              IsChecked="{Binding EnableCountdown}"
+              Style="{StaticResource DialogCheckBoxStyle}" />
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+
+      <!--  按钮行  -->
+      <StackPanel
+        Grid.Row="2"
+        Margin="12"
+        HorizontalAlignment="Right"
+        Orientation="Horizontal">
+        <Button
+          Width="80"
+          Height="30"
+          Margin="6,0,0,0"
+          Click="CancelButton_Click"
+          Content="取消"
+          Style="{StaticResource DialogOkButtonStyle}" />
+        <Button
+          Width="80"
+          Height="30"
+          Margin="6,0,0,0"
+          Click="OKButton_Click"
+          Content="确定"
+          Style="{StaticResource DialogOkButtonStyle}" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>
