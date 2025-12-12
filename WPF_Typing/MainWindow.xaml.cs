@@ -999,7 +999,7 @@ namespace WPF_Typing
                 ClearTextSelectionChecks();
                 
                 // 高亮当前选中的三级菜单项（文本文件名）
-                var highlightColor = (Color)ColorConverter.ConvertFromString("#495569"); // 蓝色高亮
+                var highlightColor = (Color)ColorConverter.ConvertFromString("#395579"); // 蓝色高亮
                 mi.Background = new SolidColorBrush(highlightColor);
                 
                 // 高亮父菜单项（二级菜单，文件夹名）

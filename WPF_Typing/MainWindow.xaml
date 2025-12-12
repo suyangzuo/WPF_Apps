@@ -278,7 +278,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="Border" Property="Background" Value="#259" />
+                                <Setter TargetName="Border" Property="Background" Value="#404A60" />
                                 <!--  do not show per-item border on highlight  -->
                                 <Setter TargetName="Border" Property="BorderBrush" Value="Transparent" />
                             </Trigger>
@@ -409,7 +409,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
                                 <!--  match hover background of other second-level menu items but keep no outer border  -->
-                                <Setter TargetName="Border" Property="Background" Value="#259" />
+                                <Setter TargetName="Border" Property="Background" Value="#404A60" />
                                 <Setter TargetName="Border" Property="BorderBrush" Value="Transparent" />
                                 <Setter TargetName="Border" Property="BorderThickness" Value="0" />
                             </Trigger>
