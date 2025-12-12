@@ -111,6 +111,9 @@ namespace WPF_Typing
         private TimeSpan _countdownRemaining = TimeSpan.Zero;
         private DateTime? _countdownEndTime = null;
 
+        // Statistics
+        private int _backspaceCount = 0;
+
         private void StartTimingIfNeeded()
         {
             if (_timerRunning) return;
@@ -420,16 +423,12 @@ namespace WPF_Typing
             double fm = elapsed.TotalMinutes;
             if (fm > 0) Speed = Math.Round(TypedCount / fm, 2);
             _countdownEndTime = null;
+            TestEndTime = DateTime.Now;
 
+            // 倒计时结束，显示统计对话框
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                var dlg = new DarkDialog
-                {
-                    Owner = this,
-                    DialogTitle = "提示",
-                    DialogMessage = "倒计时结束，输入已停止。"
-                };
-                dlg.ShowDialog();
+                ShowAnalysis();
             }));
         }
 
@@ -437,11 +436,16 @@ namespace WPF_Typing
         {
             int totalChars = _charStates.Count;
             int correctChars = _charStates.Values.Count(s => s == CharState.Correct);
-            int incorrectChars = _charStates.Values.Count(s => s == CharState.Incorrect);
             double accuracy = totalChars > 0 ? (double)correctChars / totalChars * 100 : 0;
 
             TimeSpan elapsedTime;
-            if (_isTimingEnabled)
+            if (_isTimingEnabled && _countdownEnabled)
+            {
+                // 倒计时模式：使用设置的倒计时时长，而不是实际经过的时间
+                // 这样可以与主窗体显示的用时保持一致
+                elapsedTime = _countdownDuration;
+            }
+            else if (_isTimingEnabled)
             {
                 elapsedTime = DateTime.Now - _startTime;
             }
@@ -450,21 +454,18 @@ namespace WPF_Typing
                 elapsedTime = _stopwatch.Elapsed;
             }
 
-            double speed = 0;
-            if (elapsedTime.TotalMinutes > 0)
-            {
-                speed = correctChars / elapsedTime.TotalMinutes;
-            }
+            // Calculate completion rate (typed characters / total characters)
+            double completionRate = TotalCount > 0 ? (double)totalChars / TotalCount * 100 : 0;
 
-            string message = $"练习统计:\n\n" +
-                             $"总字符数: {totalChars}\n" +
-                             $"正确字符: {correctChars}\n" +
-                             $"错误字符: {incorrectChars}\n" +
-                             $"准确率: {accuracy:F1}%\n" +
-                             $"用时: {elapsedTime.Minutes}分{elapsedTime.Seconds}秒\n" +
-                             $"速度: {speed:F1}字符/分钟";
-
-            var analysisDialog = new AnalysisDialog(message);
+            var analysisDialog = new AnalysisDialog(
+                testerName: TesterName,
+                articlePath: _currentArticlePath,
+                testStartTime: TestStartTime,
+                testEndTime: TestEndTime,
+                completionRate: completionRate,
+                elapsedTime: elapsedTime,
+                accuracy: accuracy,
+                backspaceCount: _backspaceCount);
             analysisDialog.Owner = this;
             analysisDialog.ShowDialog();
         }
@@ -1109,6 +1110,9 @@ namespace WPF_Typing
                 ElapsedHours = ElapsedMinutes = ElapsedSeconds = 0;
                 _typingFinished = false;
 
+                // reset statistics
+                _backspaceCount = 0;
+
                 // stop timer if running
                 try
                 {
@@ -1663,6 +1667,9 @@ namespace WPF_Typing
                 // if at start of document and nothing to delete, ignore
                 if (_currentLine == 0 && _currentChar == 0) return;
 
+                // Record backspace count
+                _backspaceCount++;
+
                 // determine position of the character to delete (the one before current caret)
                 int delLine = _currentLine;
                 int delChar = _currentChar - 1;
@@ -1840,6 +1847,12 @@ namespace WPF_Typing
                 _timerRunning = false;
                 _typingFinished = true;
                 UpdatePlayStopButtonState();
+                
+                // 文章全部输入完毕，显示统计对话框
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    ShowAnalysis();
+                }));
             }
 
             var newKey = $"{_currentLine}:{_currentChar}";
@@ -2124,6 +2137,7 @@ namespace WPF_Typing
 
             TestEndTime = DateTime.Now;
             UpdatePlayStopButtonState();
+            ShowAnalysis();
         }
 
         private void UpdatePlayStopButtonState()

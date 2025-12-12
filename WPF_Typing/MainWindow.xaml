@@ -578,7 +578,7 @@
                                     FontSize="16"
                                     Foreground="#32CD32"
                                     Text="📊" />
-                                <TextBlock VerticalAlignment="Center" Text="分析" />
+                                <TextBlock VerticalAlignment="Center" Text="统计" />
                             </StackPanel>
                         </MenuItem.Header>
                     </MenuItem>

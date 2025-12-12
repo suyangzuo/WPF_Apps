@@ -1,13 +1,13 @@
-﻿<Window
-    AllowsTransparency="True"
-    Background="Transparent"
-    FontFamily="{DynamicResource AppFontFamily}"
-    ResizeMode="NoResize"
-    SizeToContent="Height"
-    Title="练习分析"
-    Width="400"
-    WindowStartupLocation="CenterOwner"
-    WindowStyle="None"
+﻿    <Window
+        AllowsTransparency="True"
+        Background="Transparent"
+        FontFamily="{DynamicResource AppFontFamily}"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        Title="练习分析"
+        MaxWidth="1200"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
     mc:Ignorable="d"
     x:Class="WPF_Typing.AnalysisDialog"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -28,7 +28,9 @@
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
@@ -63,7 +65,7 @@
                         Foreground="#EEE"
                         Grid.Column="1"
                         HorizontalAlignment="Left"
-                        Text="练习分析"
+                        Text="测试结果统计"
                         VerticalAlignment="Center" />
 
                     <Button
@@ -77,24 +79,67 @@
                 </Grid>
             </Border>
 
-            <!--  内容区域  -->
-            <Border Grid.Row="1" Padding="20">
-                <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+            <!--  第一部分：统计信息  -->
+            <Border Grid.Row="1" Padding="20,15">
+                <TextBlock
+                    FontFamily="{DynamicResource AppFontFamily}"
+                    FontSize="14"
+                    LineHeight="24"
+                    TextWrapping="NoWrap"
+                    x:Name="StatisticsText" />
+            </Border>
+
+            <!--  第二部分：错误统计图表（隐藏）  -->
+            <Border Grid.Row="2" Padding="20,10" Visibility="Collapsed">
+                <StackPanel>
                     <TextBlock
                         FontFamily="{DynamicResource AppFontFamily}"
                         FontSize="14"
+                        FontWeight="Bold"
                         Foreground="#DDD"
-                        LineHeight="20"
-                        TextWrapping="Wrap"
-                        x:Name="AnalysisText" />
-                </ScrollViewer>
+                        Margin="0,0,0,10"
+                        Text="错误统计"
+                        x:Name="ErrorChartLabel" />
+                    <Border
+                        Background="#2D2D2D"
+                        BorderBrush="#555"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Height="300"
+                        Padding="10">
+                        <ContentPresenter x:Name="ErrorChartHost" />
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <!--  第三部分：速度统计图表（隐藏）  -->
+            <Border Grid.Row="3" Padding="20,10" Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock
+                        FontFamily="{DynamicResource AppFontFamily}"
+                        FontSize="14"
+                        FontWeight="Bold"
+                        Foreground="#DDD"
+                        Margin="0,0,0,10"
+                        Text="速度统计"
+                        x:Name="SpeedChartLabel" />
+                    <Border
+                        Background="#2D2D2D"
+                        BorderBrush="#555"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Height="300"
+                        Padding="10">
+                        <ContentPresenter x:Name="SpeedChartHost" />
+                    </Border>
+                </StackPanel>
             </Border>
 
             <!--  按钮区域  -->
             <Border
                 Background="#303030"
                 CornerRadius="0,0,8,8"
-                Grid.Row="2"
+                Grid.Row="4"
                 Padding="10,5">
                 <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
                     <Button

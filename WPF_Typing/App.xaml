@@ -13,8 +13,8 @@
 
             <!--  App-wide font families using embedded font resources (placed under Assets/Fonts and marked as Resource in csproj)  -->
             <!--  Replace family names after verifying internal family names if needed  -->
-            <FontFamily x:Key="AppFontFamily">pack://application:,,,/WPF_Typing;component/Assets/Fonts/#Google Sans Code, Consolas, HarmonyOS Sans SC, 'Microsoft YaHei'</FontFamily>
-            <FontFamily x:Key="MenuFontFamily">pack://application:,,,/WPF_Typing;component/Assets/Fonts/#Google Sans Code, Consolas, HarmonyOS Sans SC, 'Microsoft YaHei'</FontFamily>
+            <FontFamily x:Key="AppFontFamily">Google Sans Code, Consolas, HarmonyOS Sans SC, 微软雅黑</FontFamily>
+            <FontFamily x:Key="MenuFontFamily">Google Sans Code, Consolas, HarmonyOS Sans SC, 微软雅黑</FontFamily>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
