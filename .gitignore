@@ -85,3 +85,6 @@ ehthumbs.db
 .env.development.local
 .env.test.local
 .env.production.local
+
+# 测试数据库文件
+**/typing_results.db

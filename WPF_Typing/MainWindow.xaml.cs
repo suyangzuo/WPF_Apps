@@ -425,7 +425,9 @@ namespace WPF_Typing
             _countdownEndTime = null;
             TestEndTime = DateTime.Now;
 
-            // 倒计时结束，显示统计对话框
+            // 倒计时结束，立即保存数据，然后显示统计对话框
+            SaveTestResultIfNeeded();
+            
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 ShowAnalysis();
@@ -436,6 +438,7 @@ namespace WPF_Typing
         {
             int totalChars = _charStates.Count;
             int correctChars = _charStates.Values.Count(s => s == CharState.Correct);
+            int incorrectChars = _charStates.Values.Count(s => s == CharState.Incorrect);
             double accuracy = totalChars > 0 ? (double)correctChars / totalChars * 100 : 0;
 
             TimeSpan elapsedTime;
@@ -468,6 +471,88 @@ namespace WPF_Typing
                 backspaceCount: _backspaceCount);
             analysisDialog.Owner = this;
             analysisDialog.ShowDialog();
+        }
+        
+        /// <summary>
+        /// 在测试结束时保存数据到数据库（如果有实际输入字符）
+        /// </summary>
+        private void SaveTestResultIfNeeded()
+        {
+            int totalChars = _charStates.Count;
+            // 只有在实际测试结束（有输入字符）时才保存到数据库
+            if (totalChars > 0)
+            {
+                int correctChars = _charStates.Values.Count(s => s == CharState.Correct);
+                int incorrectChars = _charStates.Values.Count(s => s == CharState.Incorrect);
+                double accuracy = totalChars > 0 ? (double)correctChars / totalChars * 100 : 0;
+                double completionRate = TotalCount > 0 ? (double)totalChars / TotalCount * 100 : 0;
+                
+                SaveTestResultToDatabase(totalChars, correctChars, incorrectChars, completionRate, accuracy, Speed);
+            }
+        }
+        
+        /// <summary>
+        /// 保存测试结果到数据库
+        /// </summary>
+        private void SaveTestResultToDatabase(int totalChars, int correctChars, int incorrectChars, 
+            double completionRate, double accuracy, double speed)
+        {
+            try
+            {
+                // 提取文件夹名称和文件名
+                string folderName = string.Empty;
+                string fileName = string.Empty;
+                
+                if (!string.IsNullOrEmpty(_currentArticlePath))
+                {
+                    try
+                    {
+                        var fileInfo = new FileInfo(_currentArticlePath);
+                        folderName = fileInfo.Directory?.Name ?? string.Empty;
+                        fileName = Path.GetFileNameWithoutExtension(fileInfo.Name);
+                    }
+                    catch
+                    {
+                        // 如果解析失败，尝试从路径中提取
+                        var parts = _currentArticlePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                        if (parts.Length >= 2)
+                        {
+                            folderName = parts[parts.Length - 2];
+                            fileName = Path.GetFileNameWithoutExtension(parts[parts.Length - 1]);
+                        }
+                    }
+                }
+                
+                // 收集错误字符信息
+                var errorCharsList = _errorChars.Values.ToList();
+                
+                // 创建测试结果对象
+                var testResult = new TestResult
+                {
+                    TesterName = TesterName ?? "江湖人士",
+                    FolderName = folderName,
+                    FileName = fileName,
+                    CompletionRate = completionRate,
+                    TotalChars = TotalCount,
+                    CorrectChars = correctChars,
+                    IncorrectChars = incorrectChars,
+                    ErrorChars = errorCharsList,
+                    Accuracy = accuracy,
+                    Speed = speed,
+                    BackspaceCount = _backspaceCount,
+                    TestStartTime = TestStartTime ?? DateTime.Now,
+                    TestEndTime = TestEndTime ?? DateTime.Now,
+                    TestTime = DateTime.Now
+                };
+                
+                // 保存到数据库
+                DatabaseHelper.SaveTestResult(testResult);
+            }
+            catch (Exception ex)
+            {
+                // 记录错误但不中断程序
+                System.Diagnostics.Debug.WriteLine($"保存测试结果失败: {ex.Message}");
+            }
         }
 
         public MainWindow()
@@ -1090,6 +1175,7 @@ namespace WPF_Typing
                 _currentLine = 0;
                 _currentChar = 0;
                 _charStates.Clear();
+                _errorChars.Clear();
                 _runMap.Clear();
                 _changedChars.Clear();
                 _needsFullRebuild = true;
@@ -1151,6 +1237,9 @@ namespace WPF_Typing
         }
 
         private readonly Dictionary<string, CharState> _charStates = new();
+        
+        // 错误字符信息记录：key为"line:char"，value为错误信息（期望字符和实际输入字符）
+        private readonly Dictionary<string, ErrorCharInfo> _errorChars = new();
 
         private readonly HashSet<string> _changedChars = new();
 
@@ -1683,6 +1772,8 @@ namespace WPF_Typing
 
                 string delKey = $"{delLine}:{delChar}";
                 if (_charStates.ContainsKey(delKey)) _charStates.Remove(delKey);
+                // 同时清除错误字符记录
+                _errorChars.Remove(delKey);
                 _changedChars.Add(delKey);
 
                 // Recompute typing stats after deletion
@@ -1782,7 +1873,24 @@ namespace WPF_Typing
             char expected = line[_currentChar];
             string key = $"{_currentLine}:{_currentChar}";
 
-            _charStates[key] = (typed == expected) ? CharState.Correct : CharState.Incorrect;
+            bool isCorrect = typed == expected;
+            _charStates[key] = isCorrect ? CharState.Correct : CharState.Incorrect;
+            
+            // 记录错误字符信息
+            if (!isCorrect)
+            {
+                _errorChars[key] = new ErrorCharInfo
+                {
+                    ExpectedChar = expected,
+                    ActualChar = typed
+                };
+            }
+            else
+            {
+                // 如果之前有错误记录，清除它
+                _errorChars.Remove(key);
+            }
+            
             _changedChars.Add(key);
 
             TypedCount = _charStates.Count;
@@ -1848,7 +1956,9 @@ namespace WPF_Typing
                 _typingFinished = true;
                 UpdatePlayStopButtonState();
                 
-                // 文章全部输入完毕，显示统计对话框
+                // 文章全部输入完毕，立即保存数据，然后显示统计对话框
+                SaveTestResultIfNeeded();
+                
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
                     ShowAnalysis();
@@ -2137,6 +2247,9 @@ namespace WPF_Typing
 
             TestEndTime = DateTime.Now;
             UpdatePlayStopButtonState();
+            
+            // 停止测试，立即保存数据，然后显示统计对话框
+            SaveTestResultIfNeeded();
             ShowAnalysis();
         }
 
