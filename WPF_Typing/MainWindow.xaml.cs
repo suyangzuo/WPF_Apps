@@ -1719,9 +1719,11 @@ namespace WPF_Typing
                 if (_countdownEnabled)
                 {
                     _countdownRemaining = _countdownDuration;
+                    _countdownEndTime = DateTime.Now + _countdownDuration;
                     _countdownActive = true;
                 }
 
+                TestStartTime = DateTime.Now;
                 try
                 {
                     _timer.Start();
