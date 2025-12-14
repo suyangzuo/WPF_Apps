@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Input;
 
 namespace WPF_Typing
@@ -11,7 +11,7 @@ namespace WPF_Typing
             if (!string.IsNullOrEmpty(initialName))
             {
                 NameTextBox.Text = initialName;
-                NameTextBox.SelectAll();
+                NameTextBox.CaretIndex = initialName.Length;
             }
             NameTextBox.Focus();
         }

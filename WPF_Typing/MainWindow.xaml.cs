@@ -25,6 +25,8 @@ namespace WPF_Typing
         public double Height { get; set; }
         public bool IsMaximized { get; set; }
         public string? TesterName { get; set; }
+        public TimeSpan CountdownDuration { get; set; } = TimeSpan.FromMinutes(1);
+        public bool CountdownEnabled { get; set; } = false;
     }
 
     public partial class MainWindow : Window, System.ComponentModel.INotifyPropertyChanged
@@ -777,6 +779,10 @@ namespace WPF_Typing
                         {
                             TesterName = state.TesterName;
                         }
+                        
+                        // 恢复计时设置
+                        _countdownDuration = state.CountdownDuration;
+                        _countdownEnabled = state.CountdownEnabled;
                     }
                     else
                     {
@@ -848,7 +854,9 @@ namespace WPF_Typing
                     Width = width,
                     Height = height,
                     IsMaximized = isMax,
-                    TesterName = TesterName
+                    TesterName = TesterName,
+                    CountdownDuration = _countdownDuration,
+                    CountdownEnabled = _countdownEnabled
                 };
 
                 var json = JsonSerializer.Serialize(state);
@@ -2152,7 +2160,7 @@ namespace WPF_Typing
         {
             try
             {
-                var dlg = new NameDialog();
+                var dlg = new NameDialog(TesterName);
                 dlg.Owner = this;
                 if (dlg.ShowDialog() == true)
                 {
