@@ -41,7 +41,7 @@ namespace WPF_Typing
             AddCompletedCharsLine("完成字符数", completedChars, totalChars, maxLabelWidth);
             AddPercentageStatisticLine("完成率", completionRate, "#FFA500", maxLabelWidth);
             AddTimeStatisticLine("用时", FormatTimeSpan(elapsedTime), "#c68", maxLabelWidth);
-            AddPercentageStatisticLine("正确率", accuracy, "#FFD700", maxLabelWidth);
+            AddPercentageStatisticLine("正确率", accuracy, "#ADFF2F", maxLabelWidth);
             AddStatisticLine("退格次数", backspaceCount.ToString(), "#32CD32", maxLabelWidth);
             AddSpeedLine("速度", speed, "#c68", maxLabelWidth);
         }
@@ -141,8 +141,8 @@ namespace WPF_Typing
             }
             else
             {
-                // 如果没有小数点，直接添加整个数值
-                StatisticsText.Inlines.Add(new Run(formattedValue) { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ABC")) });
+                // 如果没有小数点，直接添加整个数值（统一使用测试完毕后的颜色）
+                StatisticsText.Inlines.Add(new Run(formattedValue) { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(numberColor)) });
             }
             
             // 使用 InlineUIContainer 包装 TextBlock 以设置 Margin
@@ -200,8 +200,8 @@ namespace WPF_Typing
             AddLabel(label, labelWidth);
             StatisticsText.Inlines.Add(new Run(": ") { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#999")) });
             
-            // 完成字符数 - 使用 GreenYellow
-            StatisticsText.Inlines.Add(new Run(completedChars.ToString()) { Foreground = new SolidColorBrush(Colors.GreenYellow) });
+            // 完成字符数 - 使用 #FFD700（金色，与正确率互换）
+            StatisticsText.Inlines.Add(new Run(completedChars.ToString()) { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFD700")) });
             
             // 斜杠，使用 InlineUIContainer 来设置 Margin
             var slashContainer = new InlineUIContainer
@@ -217,8 +217,8 @@ namespace WPF_Typing
             slashContainer.Child = slashTextBlock;
             StatisticsText.Inlines.Add(slashContainer);
             
-            // 总字符数 - 使用 GreenYellow
-            StatisticsText.Inlines.Add(new Run(totalChars.ToString()) { Foreground = new SolidColorBrush(Colors.GreenYellow) });
+            // 总字符数 - 使用 #FFD700（金色，与正确率互换）
+            StatisticsText.Inlines.Add(new Run(totalChars.ToString()) { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFD700")) });
             
             StatisticsText.Inlines.Add(new LineBreak());
         }
@@ -238,7 +238,7 @@ namespace WPF_Typing
             };
             var leftMarginTextBlock = new TextBlock
             {
-                Margin = new Thickness(2, 0, 0, 0) // 左边距 2 像素
+                Margin = new Thickness(4, 0, 0, 0) // 左边距 2 像素
             };
             leftMarginContainer.Child = leftMarginTextBlock;
             StatisticsText.Inlines.Add(leftMarginContainer);

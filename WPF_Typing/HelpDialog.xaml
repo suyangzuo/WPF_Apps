@@ -86,21 +86,7 @@
                         FontSize="14"
                         Foreground="#DDD"
                         LineHeight="24"
-                        TextWrapping="Wrap">
-                        <Run
-                            FontWeight="Bold"
-                            Foreground="DarkGray"
-                            Text="使用说明:" />
-                        <LineBreak />
-                        <LineBreak />
-                        <Run Text="1. 从'文本选择'菜单中选择练习文本" />
-                        <LineBreak />
-                        <Run Text="2. 绿色播放按钮功能：&#x0a;  (1) 随机已勾选：随机载入文章&#x0a;  (2) 随机未勾选：重新载入当前文章" />
-                        <LineBreak />
-                        <Run Text="3. 输入第一个字符时，测试自动开始" />
-                        <LineBreak />
-                        <Run Text="4. 点击红色停止按钮，可结束测试" />
-                    </TextBlock>
+                        TextWrapping="Wrap" />
                 </ScrollViewer>
             </Border>
 

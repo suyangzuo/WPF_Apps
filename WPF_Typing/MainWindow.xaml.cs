@@ -1610,8 +1610,8 @@ namespace WPF_Typing
                 if (!string.IsNullOrEmpty(folderName) && !string.IsNullOrEmpty(fileName))
                 {
                     // 显示"文件夹名 - 文章名称"
-                    ArticleInfoText.Inlines.Add(new Run(folderName));
-                    ArticleInfoText.Inlines.Add(new Run(" - "));
+                    ArticleInfoText.Inlines.Add(new Run(folderName) { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("Silver")) }); // 文件夹名颜色
+                    ArticleInfoText.Inlines.Add(new Run(" - ") { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#666")) }); // 分隔符颜色
                     AddFileNameWithDotSeparator(ArticleInfoText, fileName);
                 }
                 else if (!string.IsNullOrEmpty(fileName))
@@ -1636,7 +1636,19 @@ namespace WPF_Typing
                 // 添加文本部分
                 if (!string.IsNullOrEmpty(parts[i]))
                 {
-                    textBlock.Inlines.Add(new Run(parts[i]));
+                    // 判断是否是序号（第一个部分且是纯数字）
+                    bool isSequenceNumber = (i == 0 && System.Text.RegularExpressions.Regex.IsMatch(parts[i], @"^\d+$"));
+                    
+                    if (isSequenceNumber)
+                    {
+                        // 序号颜色
+                        textBlock.Inlines.Add(new Run(parts[i]) { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#AAA")) }); // 橙色
+                    }
+                    else
+                    {
+                        // 文章名颜色
+                        textBlock.Inlines.Add(new Run(parts[i]) { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("Silver")) }); // 浅绿色
+                    }
                 }
                 
                 // 如果不是最后一部分，添加"·"（带边距）
@@ -1649,7 +1661,7 @@ namespace WPF_Typing
                     var dotTextBlock = new TextBlock
                     {
                         Text = "·",
-                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CCC")),
+                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#666")), // 金色
                         Margin = new Thickness(2, 0, 2, 0) // 左右各2像素边距
                     };
                     dotContainer.Child = dotTextBlock;
@@ -2247,6 +2259,9 @@ namespace WPF_Typing
         private void TypingDisplay_PreviewTextInput(object sender, TextCompositionEventArgs e)
         {
             e.Handled = true;
+            // 如果测试已结束，不允许再输入
+            if (_typingFinished) return;
+            
             if (!_timerRunning)
             {
                 _stopwatch.Restart();
@@ -2278,6 +2293,16 @@ namespace WPF_Typing
 
         private void TypingDisplay_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            // 如果测试已结束，不允许再输入（包括退格）
+            if (_typingFinished)
+            {
+                if (e.Key == Key.Space || e.Key == Key.Back)
+                {
+                    e.Handled = true;
+                }
+                return;
+            }
+            
             // Handle space here because in some cases it may be translated differently; swallow the key so RichTextBox won't insert it
             if (e.Key == Key.Space)
             {
@@ -2767,8 +2792,7 @@ namespace WPF_Typing
             // 如果测试正在进行，停止测试并弹出统计对话框
             if (_timerRunning)
             {
-                StopTest();
-                ShowAnalysis();
+                StopTest(); // StopTest() 内部已经调用了 ShowAnalysis()
                 return;
             }
             
