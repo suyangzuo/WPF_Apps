@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Shell; // for WindowChrome
@@ -14,6 +15,8 @@ using System.ComponentModel; // for DesignerProperties
 using System.Runtime.InteropServices;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Effects; // for DropShadowEffect
+using Microsoft.Win32; // for OpenFileDialog
 
 namespace WPF_Typing
 {
@@ -63,6 +66,9 @@ namespace WPF_Typing
 
         // Current selected article path
         private string? _currentArticlePath = null;
+        
+        // Random mode flag
+        private bool _randomModeEnabled = false;
 
         public string TesterName
         {
@@ -429,11 +435,8 @@ namespace WPF_Typing
 
             // 倒计时结束，立即保存数据，然后显示统计对话框
             SaveTestResultIfNeeded();
-            
-            Dispatcher.BeginInvoke(new Action(() =>
-            {
-                ShowAnalysis();
-            }));
+
+            Dispatcher.BeginInvoke(new Action(() => { ShowAnalysis(); }));
         }
 
         private void ShowAnalysis()
@@ -462,6 +465,9 @@ namespace WPF_Typing
             // Calculate completion rate (typed characters / total characters)
             double completionRate = TotalCount > 0 ? (double)totalChars / TotalCount * 100 : 0;
 
+            // 使用现成的 Speed 属性（整数）
+            int speed = (int)Math.Round(Speed);
+
             var analysisDialog = new AnalysisDialog(
                 testerName: TesterName,
                 articlePath: _currentArticlePath,
@@ -470,11 +476,14 @@ namespace WPF_Typing
                 completionRate: completionRate,
                 elapsedTime: elapsedTime,
                 accuracy: accuracy,
-                backspaceCount: _backspaceCount);
+                backspaceCount: _backspaceCount,
+                completedChars: totalChars,
+                totalChars: TotalCount,
+                speed: speed);
             analysisDialog.Owner = this;
             analysisDialog.ShowDialog();
         }
-        
+
         /// <summary>
         /// 在测试结束时保存数据到数据库（如果有实际输入字符）
         /// </summary>
@@ -488,15 +497,15 @@ namespace WPF_Typing
                 int incorrectChars = _charStates.Values.Count(s => s == CharState.Incorrect);
                 double accuracy = totalChars > 0 ? (double)correctChars / totalChars * 100 : 0;
                 double completionRate = TotalCount > 0 ? (double)totalChars / TotalCount * 100 : 0;
-                
+
                 SaveTestResultToDatabase(totalChars, correctChars, incorrectChars, completionRate, accuracy, Speed);
             }
         }
-        
+
         /// <summary>
         /// 保存测试结果到数据库
         /// </summary>
-        private void SaveTestResultToDatabase(int totalChars, int correctChars, int incorrectChars, 
+        private void SaveTestResultToDatabase(int totalChars, int correctChars, int incorrectChars,
             double completionRate, double accuracy, double speed)
         {
             try
@@ -504,7 +513,7 @@ namespace WPF_Typing
                 // 提取文件夹名称和文件名
                 string folderName = string.Empty;
                 string fileName = string.Empty;
-                
+
                 if (!string.IsNullOrEmpty(_currentArticlePath))
                 {
                     try
@@ -516,7 +525,8 @@ namespace WPF_Typing
                     catch
                     {
                         // 如果解析失败，尝试从路径中提取
-                        var parts = _currentArticlePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                        var parts = _currentArticlePath.Split(Path.DirectorySeparatorChar,
+                            Path.AltDirectorySeparatorChar);
                         if (parts.Length >= 2)
                         {
                             folderName = parts[parts.Length - 2];
@@ -524,10 +534,10 @@ namespace WPF_Typing
                         }
                     }
                 }
-                
+
                 // 收集错误字符信息
                 var errorCharsList = _errorChars.Values.ToList();
-                
+
                 // 创建测试结果对象
                 var testResult = new TestResult
                 {
@@ -546,7 +556,7 @@ namespace WPF_Typing
                     TestEndTime = TestEndTime ?? DateTime.Now,
                     TestTime = DateTime.Now
                 };
-                
+
                 // 保存到数据库
                 DatabaseHelper.SaveTestResult(testResult);
             }
@@ -663,6 +673,16 @@ namespace WPF_Typing
 
         private void MainWindow_Loaded(object? sender, RoutedEventArgs e)
         {
+            // 从数据库加载随机模式状态
+            _randomModeEnabled = DatabaseHelper.LoadRandomModeEnabled();
+            if (RandomMenuItem != null)
+            {
+                RandomMenuItem.IsChecked = _randomModeEnabled;
+            }
+            
+            // 初始化随机菜单项的Emoji显示
+            UpdateRandomEmoji();
+            
             // Restore window position and size if available
             TryRestoreWindowState();
 
@@ -675,8 +695,10 @@ namespace WPF_Typing
             // Apply WindowChrome hit test settings at runtime only (designer cannot parse attached attributes)
             if (!DesignerProperties.GetIsInDesignMode(this))
             {
-                if (TitleText != null)
-                    WindowChrome.SetIsHitTestVisibleInChrome(TitleText, false);
+                if (AppTitleText != null)
+                    WindowChrome.SetIsHitTestVisibleInChrome(AppTitleText, false);
+                if (ArticleInfoText != null)
+                    WindowChrome.SetIsHitTestVisibleInChrome(ArticleInfoText, false);
                 if (MinimizeButton != null)
                     WindowChrome.SetIsHitTestVisibleInChrome(MinimizeButton, true);
                 if (MaximizeButton != null)
@@ -779,7 +801,7 @@ namespace WPF_Typing
                         {
                             TesterName = state.TesterName;
                         }
-                        
+
                         // 恢复计时设置
                         _countdownDuration = state.CountdownDuration;
                         _countdownEnabled = state.CountdownEnabled;
@@ -868,6 +890,151 @@ namespace WPF_Typing
             }
         }
 
+        /// <summary>
+        /// 计算二级菜单文本的最大宽度
+        /// </summary>
+        private double CalculateMaxSubMenuTextWidth(List<string> categoryNames)
+        {
+            double maxTextWidth = 0;
+            var typeface = new Typeface(
+                (FontFamily)FindResource("MenuFontFamily"),
+                FontStyles.Normal,
+                FontWeights.Normal,
+                FontStretches.Normal);
+            double fontSize = 14; // 菜单字体大小
+
+            foreach (var name in categoryNames)
+            {
+                var formattedText = new FormattedText(
+                    name,
+                    System.Globalization.CultureInfo.CurrentCulture,
+                    FlowDirection.LeftToRight,
+                    typeface,
+                    fontSize,
+                    Brushes.Black,
+                    VisualTreeHelper.GetDpi(this).PixelsPerDip);
+                maxTextWidth = Math.Max(maxTextWidth, formattedText.Width);
+            }
+
+            return maxTextWidth;
+        }
+
+        /// <summary>
+        /// 设置二级菜单项的子菜单宽度
+        /// </summary>
+        private void SetSubMenuWidth(MenuItem menuItem, double width)
+        {
+            // 当子菜单打开时设置宽度
+            menuItem.SubmenuOpened += (sender, e) =>
+            {
+                // 使用 Dispatcher 延迟设置，确保 Popup 完全创建
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        // 查找 Popup
+                        var popup = FindVisualChild<Popup>(menuItem);
+                        if (popup != null)
+                        {
+                            // 查找 Popup 内的 Border（SubMenuBorder）
+                            var border = FindVisualChild<Border>(popup);
+                            if (border != null && border.Name == "SubMenuBorder")
+                            {
+                                border.MinWidth = width;
+                                border.Width = width;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // 忽略错误
+                    }
+                }), DispatcherPriority.Loaded);
+            };
+        }
+
+        /// <summary>
+        /// 在视觉树中查找指定类型的子元素
+        /// </summary>
+        private T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T result)
+                {
+                    return result;
+                }
+
+                var childOfChild = FindVisualChild<T>(child);
+                if (childOfChild != null)
+                {
+                    return childOfChild;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 创建带右箭头的二级菜单项 Header
+        /// </summary>
+        private Grid CreateSubMenuHeader(string categoryName, double maxLeftColumnWidth,
+            System.Windows.Media.ImageSource? iconSource = null)
+        {
+            var grid = new Grid();
+            // 第0列使用固定宽度，确保所有右箭头对齐
+            grid.ColumnDefinitions.Add(new ColumnDefinition
+                { Width = new GridLength(maxLeftColumnWidth) }); // 图标和文本（固定宽度）
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(25) }); // 固定25像素间距
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // 右箭头
+
+            var leftPanel = new StackPanel { Orientation = Orientation.Horizontal };
+
+            if (iconSource != null)
+            {
+                var icon = new Image
+                {
+                    Source = iconSource,
+                    Width = 16,
+                    Height = 16,
+                    Margin = new Thickness(0, 0, 12, 0),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Effect = new DropShadowEffect
+                    {
+                        Color = Colors.Black,
+                        Opacity = 0.6,
+                        BlurRadius = 1,
+                        ShadowDepth = 1,
+                        Direction = 315
+                    }
+                };
+                leftPanel.Children.Add(icon);
+            }
+
+            var textBlock = new TextBlock
+            {
+                Text = categoryName,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            leftPanel.Children.Add(textBlock);
+
+            Grid.SetColumn(leftPanel, 0);
+            grid.Children.Add(leftPanel);
+
+            var arrow = new TextBlock
+            {
+                Text = "›",
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 0)
+            };
+            Grid.SetColumn(arrow, 2);
+            grid.Children.Add(arrow);
+
+            return grid;
+        }
+
         private void PopulateTextSelectionMenu()
         {
             TextSelectionMenu.Items.Clear();
@@ -893,43 +1060,45 @@ namespace WPF_Typing
 
                         if (root.ValueKind == JsonValueKind.Object)
                         {
+                            var categoryNames = new List<string>(); // 用于计算最大宽度
+
+                            // 第一遍：收集所有分类名称
+                            foreach (var prop in root.EnumerateObject())
+                            {
+                                categoryNames.Add(prop.Name);
+                            }
+
+                            // 计算最大文本宽度和固定列宽度
+                            double maxTextWidth = categoryNames.Count > 0
+                                ? CalculateMaxSubMenuTextWidth(categoryNames)
+                                : 0;
+                            // 第0列固定宽度 = 图标(16) + 图标右边距(12) + 最大文本宽度
+                            double maxLeftColumnWidth = 16 + 12 + maxTextWidth;
+
+                            // 第二遍：创建菜单项
                             foreach (var prop in root.EnumerateObject())
                             {
                                 var category = prop.Name;
-                                var parent = new MenuItem { Header = category };
-                                parent.Style = (Style)FindResource("SubMenuHeaderStyle");
 
+                                System.Windows.Media.ImageSource? iconSource = null;
                                 try
                                 {
                                     var iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets",
                                         "Images", "PNG", $"{category}.png");
                                     if (File.Exists(iconPath))
                                     {
-                                        var panel = new StackPanel { Orientation = Orientation.Horizontal };
-
-                                        var icon = new Image
-                                        {
-                                            Source = new System.Windows.Media.Imaging.BitmapImage(new Uri(iconPath)),
-                                            Width = 16,
-                                            Height = 16,
-                                            Margin = new Thickness(0, 0, 12, 0),
-                                            VerticalAlignment = VerticalAlignment.Center
-                                        };
-                                        panel.Children.Add(icon);
-
-                                        var textBlock = new TextBlock
-                                        {
-                                            Text = category,
-                                            VerticalAlignment = VerticalAlignment.Center
-                                        };
-                                        panel.Children.Add(textBlock);
-
-                                        parent.Header = panel;
+                                        iconSource = new System.Windows.Media.Imaging.BitmapImage(new Uri(iconPath));
                                     }
                                 }
                                 catch
                                 {
                                 }
+
+                                var parent = new MenuItem
+                                {
+                                    Header = CreateSubMenuHeader(category, maxLeftColumnWidth, iconSource)
+                                };
+                                parent.Style = (Style)FindResource("SubMenuHeaderStyle");
 
                                 if (prop.Value.ValueKind == JsonValueKind.Array)
                                 {
@@ -986,16 +1155,18 @@ namespace WPF_Typing
                                         // create header as horizontal panel with colored parts
                                         var panel = new StackPanel { Orientation = Orientation.Horizontal };
 
+                                        TextBlock? seqTb = null;
                                         if (!string.IsNullOrEmpty(seq))
                                         {
-                                            var seqTb = new TextBlock
+                                            seqTb = new TextBlock
                                             {
                                                 Text = seq,
                                                 Foreground =
                                                     (SolidColorBrush)(new BrushConverter()
-                                                        .ConvertFromString("#999999") ?? Brushes.Gray),
+                                                        .ConvertFromString("#777") ?? Brushes.Gray),
                                                 Margin = new Thickness(0, 0, 10, 0),
-                                                VerticalAlignment = VerticalAlignment.Center
+                                                VerticalAlignment = VerticalAlignment.Center,
+                                                Name = "SeqTextBlock" // 设置名称以便后续访问
                                             };
                                             panel.Children.Add(seqTb);
                                         }
@@ -1004,30 +1175,85 @@ namespace WPF_Typing
                                         {
                                             Text = title,
                                             Foreground =
-                                                (SolidColorBrush)(new BrushConverter().ConvertFromString("#FFFFFF") ??
+                                                (SolidColorBrush)(new BrushConverter().ConvertFromString("#BBB") ??
                                                                   Brushes.White),
-                                            VerticalAlignment = VerticalAlignment.Center
+                                            VerticalAlignment = VerticalAlignment.Center,
+                                            Name = "TitleTextBlock" // 设置名称以便后续访问
                                         };
                                         panel.Children.Add(titleTb);
 
+                                        // 保存文章名称的默认颜色
+                                        var defaultTitleColor = (SolidColorBrush)(new BrushConverter()
+                                            .ConvertFromString("#BBB") ?? Brushes.White);
+
+                                        TextBlock? charsTb = null;
                                         if (!string.IsNullOrEmpty(charsText))
                                         {
-                                            var charsTb = new TextBlock
+                                            charsTb = new TextBlock
                                             {
                                                 Text = charsText,
                                                 Foreground =
                                                     (SolidColorBrush)(new BrushConverter()
-                                                        .ConvertFromString("#9DCBFF") ?? Brushes.LightBlue),
+                                                        .ConvertFromString("#5090D0") ?? Brushes.LightBlue),
                                                 Margin = new Thickness(16, 0, 0, 0),
-                                                VerticalAlignment = VerticalAlignment.Center
+                                                VerticalAlignment = VerticalAlignment.Center,
+                                                Name = "CharsTextBlock" // 设置名称以便后续访问
                                             };
                                             panel.Children.Add(charsTb);
                                         }
+
+                                        // 保存字符数的默认颜色
+                                        var defaultCharsColor = (SolidColorBrush)(new BrushConverter()
+                                            .ConvertFromString("#5090D0") ?? Brushes.LightBlue);
 
                                         var child = new MenuItem { Tag = Path.Combine(_textsRoot, category, fileName) };
                                         child.Header = panel;
                                         child.Style = (Style)FindResource("DarkSubMenuItemStyle");
                                         child.Click += TextChoiceMenuItem_Click;
+
+                                        // 保存默认的灰色（用于序号）
+                                        var defaultGrayColor = seqTb != null
+                                            ? (SolidColorBrush)(new BrushConverter()
+                                                .ConvertFromString("#777") ?? Brushes.Gray)
+                                            : null;
+
+                                        // 处理悬停和选中时颜色变化
+                                        child.MouseEnter += (s, e) =>
+                                        {
+                                            // 悬停时：序号、文章名称显示白色，字符数显示 LightBlue
+                                            if (seqTb != null)
+                                            {
+                                                seqTb.Foreground = new SolidColorBrush(Color.FromRgb(225, 225, 225));
+                                            }
+
+                                            titleTb.Foreground = Brushes.White;
+                                            if (charsTb != null)
+                                            {
+                                                charsTb.Foreground = (SolidColorBrush)(new BrushConverter()
+                                                    .ConvertFromString("#9DCBFF") ?? Brushes.LightBlue);
+                                            }
+                                        };
+                                        child.MouseLeave += (s, e) =>
+                                        {
+                                            // 鼠标离开时，如果已选中则保持悬停颜色，否则恢复默认颜色
+                                            var isSelected = child.Background is SolidColorBrush brush &&
+                                                             brush.Color ==
+                                                             (Color)ColorConverter.ConvertFromString("#A47");
+                                            if (!isSelected)
+                                            {
+                                                if (seqTb != null && defaultGrayColor != null)
+                                                {
+                                                    seqTb.Foreground = defaultGrayColor;
+                                                }
+
+                                                titleTb.Foreground = defaultTitleColor;
+                                                if (charsTb != null)
+                                                {
+                                                    charsTb.Foreground = defaultCharsColor;
+                                                }
+                                            }
+                                        };
+
                                         parent.Items.Add(child);
                                     }
                                 }
@@ -1036,6 +1262,23 @@ namespace WPF_Typing
                                 if (parent.Items.Count > 0)
                                 {
                                     TextSelectionMenu.Items.Add(parent);
+                                }
+                            }
+
+                            // 设置二级菜单（子菜单）的宽度
+                            if (categoryNames.Count > 0)
+                            {
+                                // 宽度 = ContentPresenter左边距(10) + 第0列固定宽度 + 固定间距(25) + 箭头宽度(约8) + 箭头右边距(10) + Border内边距(4*2)
+                                double arrowWidth = 8; // 箭头大约宽度
+                                double subMenuWidth = 10 + maxLeftColumnWidth + 25 + arrowWidth + 10 + 8;
+
+                                // 为所有二级菜单项设置子菜单宽度
+                                foreach (MenuItem parent in TextSelectionMenu.Items)
+                                {
+                                    if (parent.Style == FindResource("SubMenuHeaderStyle"))
+                                    {
+                                        SetSubMenuWidth(parent, subMenuWidth);
+                                    }
                                 }
                             }
 
@@ -1058,6 +1301,9 @@ namespace WPF_Typing
                     return;
                 }
 
+                var fallbackCategoryNames = new List<string>(); // 用于计算最大宽度
+
+                // 第一遍：收集所有目录名称
                 foreach (var d in dirs)
                 {
                     // skip empty directories
@@ -1065,10 +1311,64 @@ namespace WPF_Typing
                     if (entries.Length == 0) continue;
 
                     var name = Path.GetFileName(d);
-                    var mi = new MenuItem { Header = name, Tag = d };
+                    fallbackCategoryNames.Add(name);
+                }
+
+                // 计算最大文本宽度和固定列宽度
+                double fallbackMaxTextWidth = fallbackCategoryNames.Count > 0
+                    ? CalculateMaxSubMenuTextWidth(fallbackCategoryNames)
+                    : 0;
+                // 第0列固定宽度 = 图标(16) + 图标右边距(12) + 最大文本宽度
+                double fallbackMaxLeftColumnWidth = 16 + 12 + fallbackMaxTextWidth;
+
+                // 第二遍：创建菜单项
+                foreach (var d in dirs)
+                {
+                    // skip empty directories
+                    var entries = Directory.GetFileSystemEntries(d);
+                    if (entries.Length == 0) continue;
+
+                    var name = Path.GetFileName(d);
+
+                    System.Windows.Media.ImageSource? iconSource = null;
+                    try
+                    {
+                        var iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets",
+                            "Images", "PNG", $"{name}.png");
+                        if (File.Exists(iconPath))
+                        {
+                            iconSource = new System.Windows.Media.Imaging.BitmapImage(new Uri(iconPath));
+                        }
+                    }
+                    catch
+                    {
+                    }
+
+                    var mi = new MenuItem
+                    {
+                        Header = CreateSubMenuHeader(name, fallbackMaxLeftColumnWidth, iconSource),
+                        Tag = d
+                    };
                     mi.Style = (Style)FindResource("SubMenuHeaderStyle");
                     mi.Click += TextChoiceMenuItem_Click;
                     TextSelectionMenu.Items.Add(mi);
+                }
+
+                // 设置二级菜单（子菜单）的宽度
+                if (fallbackCategoryNames.Count > 0)
+                {
+                    // 宽度 = ContentPresenter左边距(10) + 第0列固定宽度 + 固定间距(25) + 箭头宽度(约8) + 箭头右边距(10) + Border内边距(4*2)
+                    double arrowWidth = 8; // 箭头大约宽度
+                    double subMenuWidth = 10 + fallbackMaxLeftColumnWidth + 25 + arrowWidth + 10 + 8;
+
+                    // 为所有二级菜单项设置子菜单宽度
+                    foreach (MenuItem item in TextSelectionMenu.Items)
+                    {
+                        if (item.Style == FindResource("SubMenuHeaderStyle"))
+                        {
+                            SetSubMenuWidth(item, subMenuWidth);
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -1088,14 +1388,41 @@ namespace WPF_Typing
 
                 // load the text file into typing area
                 LoadTextFromFile(path);
+                
+                // update title bar article info
+                UpdateArticleInfoInTitleBar();
 
                 // update menu selection visuals: mark this item and its parents as selected (change background)
                 ClearTextSelectionChecks();
-                
+
                 // 高亮当前选中的三级菜单项（文本文件名）
-                var highlightColor = (Color)ColorConverter.ConvertFromString("#395579"); // 蓝色高亮
+                var highlightColor = (Color)ColorConverter.ConvertFromString("#A47"); // 蓝色高亮
                 mi.Background = new SolidColorBrush(highlightColor);
-                
+
+                // 更新选中菜单项的颜色：序号和文章名称显示白色，字符数显示 LightBlue
+                if (mi.Header is StackPanel headerPanel)
+                {
+                    foreach (var child in headerPanel.Children)
+                    {
+                        if (child is TextBlock tb)
+                        {
+                            if (tb.Name == "SeqTextBlock")
+                            {
+                                tb.Foreground = new SolidColorBrush(Color.FromRgb(225, 225, 225));
+                            }
+                            else if (tb.Name == "TitleTextBlock")
+                            {
+                                tb.Foreground = Brushes.White;
+                            }
+                            else if (tb.Name == "CharsTextBlock")
+                            {
+                                tb.Foreground = (SolidColorBrush)(new BrushConverter()
+                                    .ConvertFromString("#9DCBFF") ?? Brushes.LightBlue);
+                            }
+                        }
+                    }
+                }
+
                 // 高亮父菜单项（二级菜单，文件夹名）
                 if (mi.Parent is MenuItem parent)
                 {
@@ -1114,6 +1441,73 @@ namespace WPF_Typing
         private int _currentLine = 0; // absolute index in _allLines
         private int _currentChar = 0; // index within the current line
 
+        private void UpdateMenuSelectionForPath(string filePath)
+        {
+            // 清除所有选中状态
+            ClearTextSelectionChecks();
+            
+            // 查找匹配的菜单项
+            MenuItem? targetMenuItem = null;
+            foreach (var item in TextSelectionMenu.Items)
+            {
+                if (item is MenuItem parentMenuItem)
+                {
+                    foreach (var child in parentMenuItem.Items)
+                    {
+                        if (child is MenuItem childMenuItem && childMenuItem.Tag is string tagPath)
+                        {
+                            // 使用路径比较（处理路径分隔符差异）
+                            if (string.Equals(tagPath, filePath, StringComparison.OrdinalIgnoreCase) ||
+                                Path.GetFullPath(tagPath) == Path.GetFullPath(filePath))
+                            {
+                                targetMenuItem = childMenuItem;
+                                break;
+                            }
+                        }
+                    }
+                    if (targetMenuItem != null)
+                        break;
+                }
+            }
+            
+            if (targetMenuItem != null)
+            {
+                // 高亮当前选中的三级菜单项（文本文件名）
+                var highlightColor = (Color)ColorConverter.ConvertFromString("#A47");
+                targetMenuItem.Background = new SolidColorBrush(highlightColor);
+                
+                // 更新选中菜单项的颜色：序号和文章名称显示白色，字符数显示 LightBlue
+                if (targetMenuItem.Header is StackPanel headerPanel)
+                {
+                    foreach (var child in headerPanel.Children)
+                    {
+                        if (child is TextBlock tb)
+                        {
+                            if (tb.Name == "SeqTextBlock")
+                            {
+                                tb.Foreground = new SolidColorBrush(Color.FromRgb(225, 225, 225));
+                            }
+                            else if (tb.Name == "TitleTextBlock")
+                            {
+                                tb.Foreground = Brushes.White;
+                            }
+                            else if (tb.Name == "CharsTextBlock")
+                            {
+                                tb.Foreground = (SolidColorBrush)(new BrushConverter()
+                                    .ConvertFromString("#9DCBFF") ?? Brushes.LightBlue);
+                            }
+                        }
+                    }
+                }
+                
+                // 高亮父菜单项（二级菜单，文件夹名）
+                if (targetMenuItem.Parent is MenuItem parent)
+                {
+                    parent.Background = new SolidColorBrush(highlightColor);
+                }
+            }
+        }
+
         private void ClearTextSelectionChecks()
         {
             // reset background for all items under TextSelectionMenu
@@ -1126,11 +1520,140 @@ namespace WPF_Typing
                     // 重置三级菜单项背景（DarkSubMenuItemStyle 默认是 #2D2D2D）
                     foreach (var child in mi.Items)
                     {
-                        if (child is MenuItem cmi) 
+                        if (child is MenuItem cmi)
                         {
                             cmi.ClearValue(MenuItem.BackgroundProperty);
+
+                            // 恢复所有文本颜色为默认值
+                            if (cmi.Header is StackPanel headerPanel)
+                            {
+                                foreach (var panelChild in headerPanel.Children)
+                                {
+                                    if (panelChild is TextBlock tb)
+                                    {
+                                        if (tb.Name == "SeqTextBlock")
+                                        {
+                                            tb.Foreground = (SolidColorBrush)(new BrushConverter()
+                                                .ConvertFromString("#777") ?? Brushes.Gray);
+                                        }
+                                        else if (tb.Name == "TitleTextBlock")
+                                        {
+                                            tb.Foreground = (SolidColorBrush)(new BrushConverter()
+                                                .ConvertFromString("#BBB") ?? Brushes.White);
+                                        }
+                                        else if (tb.Name == "CharsTextBlock")
+                                        {
+                                            tb.Foreground = (SolidColorBrush)(new BrushConverter()
+                                                .ConvertFromString("#5090D0") ?? Brushes.LightBlue);
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
+                }
+            }
+        }
+
+        private void UpdateArticleInfoInTitleBar()
+        {
+            if (ArticleInfoText == null) return;
+            
+            // 清空之前的 Inlines
+            ArticleInfoText.Inlines.Clear();
+            
+            if (string.IsNullOrEmpty(_currentArticlePath))
+            {
+                return;
+            }
+            
+            try
+            {
+                // 检查是否是 Texts 文件夹下的文件
+                var normalizedPath = Path.GetFullPath(_currentArticlePath);
+                var normalizedTextsRoot = Path.GetFullPath(_textsRoot);
+                
+                string folderName = string.Empty;
+                string fileName = string.Empty;
+                
+                if (normalizedPath.StartsWith(normalizedTextsRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    // 是 Texts 文件夹下的文件，提取文件夹名和文件名
+                    var relativePath = normalizedPath.Substring(normalizedTextsRoot.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    var parts = relativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    
+                    if (parts.Length >= 2)
+                    {
+                        // 第一个是文件夹名，最后一个是文件名
+                        folderName = parts[0];
+                        fileName = parts[parts.Length - 1];
+                    }
+                    else if (parts.Length == 1)
+                    {
+                        // 只有文件名，没有文件夹
+                        fileName = parts[0];
+                    }
+                }
+                else
+                {
+                    // 外部文件，只显示文件名（不带扩展名）
+                    fileName = Path.GetFileName(_currentArticlePath);
+                }
+                
+                // 去掉文件扩展名
+                if (!string.IsNullOrEmpty(fileName))
+                {
+                    fileName = Path.GetFileNameWithoutExtension(fileName);
+                }
+                
+                // 构建显示内容
+                if (!string.IsNullOrEmpty(folderName) && !string.IsNullOrEmpty(fileName))
+                {
+                    // 显示"文件夹名 - 文章名称"
+                    ArticleInfoText.Inlines.Add(new Run(folderName));
+                    ArticleInfoText.Inlines.Add(new Run(" - "));
+                    AddFileNameWithDotSeparator(ArticleInfoText, fileName);
+                }
+                else if (!string.IsNullOrEmpty(fileName))
+                {
+                    // 只显示文件名
+                    AddFileNameWithDotSeparator(ArticleInfoText, fileName);
+                }
+            }
+            catch
+            {
+                ArticleInfoText.Inlines.Clear();
+            }
+        }
+        
+        private void AddFileNameWithDotSeparator(TextBlock textBlock, string fileName)
+        {
+            // 将文件名按"_"分割，然后用"·"连接，每个"·"都有左右边距
+            var parts = fileName.Split('_');
+            
+            for (int i = 0; i < parts.Length; i++)
+            {
+                // 添加文本部分
+                if (!string.IsNullOrEmpty(parts[i]))
+                {
+                    textBlock.Inlines.Add(new Run(parts[i]));
+                }
+                
+                // 如果不是最后一部分，添加"·"（带边距）
+                if (i < parts.Length - 1)
+                {
+                    var dotContainer = new InlineUIContainer
+                    {
+                        BaselineAlignment = BaselineAlignment.Baseline
+                    };
+                    var dotTextBlock = new TextBlock
+                    {
+                        Text = "·",
+                        Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CCC")),
+                        Margin = new Thickness(2, 0, 2, 0) // 左右各2像素边距
+                    };
+                    dotContainer.Child = dotTextBlock;
+                    textBlock.Inlines.Add(dotContainer);
                 }
             }
         }
@@ -1230,6 +1753,9 @@ namespace WPF_Typing
 
                 // update play/stop button state
                 UpdatePlayStopButtonState();
+                
+                // update title bar article info
+                UpdateArticleInfoInTitleBar();
             }
             catch (Exception ex)
             {
@@ -1245,7 +1771,7 @@ namespace WPF_Typing
         }
 
         private readonly Dictionary<string, CharState> _charStates = new();
-        
+
         // 错误字符信息记录：key为"line:char"，value为错误信息（期望字符和实际输入字符）
         private readonly Dictionary<string, ErrorCharInfo> _errorChars = new();
 
@@ -1885,7 +2411,7 @@ namespace WPF_Typing
 
             bool isCorrect = typed == expected;
             _charStates[key] = isCorrect ? CharState.Correct : CharState.Incorrect;
-            
+
             // 记录错误字符信息
             if (!isCorrect)
             {
@@ -1900,7 +2426,7 @@ namespace WPF_Typing
                 // 如果之前有错误记录，清除它
                 _errorChars.Remove(key);
             }
-            
+
             _changedChars.Add(key);
 
             TypedCount = _charStates.Count;
@@ -1965,14 +2491,11 @@ namespace WPF_Typing
                 _timerRunning = false;
                 _typingFinished = true;
                 UpdatePlayStopButtonState();
-                
+
                 // 文章全部输入完毕，立即保存数据，然后显示统计对话框
                 SaveTestResultIfNeeded();
-                
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    ShowAnalysis();
-                }));
+
+                Dispatcher.BeginInvoke(new Action(() => { ShowAnalysis(); }));
             }
 
             var newKey = $"{_currentLine}:{_currentChar}";
@@ -2151,6 +2674,32 @@ namespace WPF_Typing
             this.Close();
         }
 
+        private void OpenMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var openFileDialog = new OpenFileDialog
+                {
+                    Filter = "文本文件 (*.txt)|*.txt|所有文件 (*.*)|*.*",
+                    FilterIndex = 1,
+                    Title = "打开文本文件"
+                };
+
+                if (openFileDialog.ShowDialog() == true)
+                {
+                    string filePath = openFileDialog.FileName;
+                    _currentArticlePath = filePath;
+                    LoadTextFromFile(filePath);
+                    UpdateArticleInfoInTitleBar();
+                    UpdatePlayStopButtonState();
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"打开文件失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
         {
             this.Close();
@@ -2215,21 +2764,146 @@ namespace WPF_Typing
 
         private void PlayStopButton_Click(object sender, RoutedEventArgs e)
         {
+            // 如果测试正在进行，停止测试并弹出统计对话框
+            if (_timerRunning)
+            {
+                StopTest();
+                ShowAnalysis();
+                return;
+            }
+            
+            // 如果随机模式已启用，随机选择一篇文章
+            if (_randomModeEnabled)
+            {
+                LoadRandomArticle();
+                return;
+            }
+            
             // 如果未选中任何文章，点击不产生作用
             if (string.IsNullOrEmpty(_currentArticlePath))
             {
                 return;
             }
 
-            // 如果测试正在进行，停止测试
-            if (_timerRunning)
-            {
-                StopTest();
-            }
             // 如果测试已结束，重新载入当前文章
-            else if (_typingFinished)
+            if (_typingFinished)
             {
                 LoadTextFromFile(_currentArticlePath);
+                UpdateArticleInfoInTitleBar();
+            }
+        }
+        
+        private void RandomMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem mi)
+            {
+                _randomModeEnabled = mi.IsChecked;
+                UpdateRandomEmoji();
+                // 保存到数据库
+                DatabaseHelper.SaveRandomModeEnabled(_randomModeEnabled);
+            }
+        }
+        
+        private void UpdateRandomEmoji()
+        {
+            if (RandomMenuItem?.Header is StackPanel panel)
+            {
+                foreach (var child in panel.Children)
+                {
+                    if (child is TextBlock tb && tb.Name == "RandomEmoji")
+                    {
+                        if (_randomModeEnabled)
+                        {
+                            tb.Text = "☑";
+                            tb.Opacity = 1.0;
+                        }
+                        else
+                        {
+                            tb.Text = "🔲";
+                            tb.Opacity = 1.0;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        
+        private void LoadRandomArticle()
+        {
+            try
+            {
+                if (!Directory.Exists(_textsRoot))
+                {
+                    return;
+                }
+
+                var listFile = Path.Combine(_textsRoot, "file-list.json");
+                if (!File.Exists(listFile))
+                {
+                    return;
+                }
+
+                var json = File.ReadAllText(listFile, Encoding.UTF8);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                if (root.ValueKind != JsonValueKind.Object)
+                {
+                    return;
+                }
+
+                // 收集所有文件路径
+                var allFiles = new List<string>();
+                foreach (var prop in root.EnumerateObject())
+                {
+                    var category = prop.Name;
+                    if (prop.Value.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var entry in prop.Value.EnumerateArray())
+                        {
+                            if (entry.ValueKind != JsonValueKind.Object) continue;
+
+                            string? fileName = null;
+                            if (entry.TryGetProperty("文件名", out var fn) &&
+                                fn.ValueKind == JsonValueKind.String)
+                                fileName = fn.GetString() ?? string.Empty;
+                            else if (entry.TryGetProperty("filename", out var fn2) &&
+                                     fn2.ValueKind == JsonValueKind.String)
+                                fileName = fn2.GetString() ?? string.Empty;
+
+                            if (!string.IsNullOrEmpty(fileName))
+                            {
+                                var filePath = Path.Combine(_textsRoot, category, fileName);
+                                if (File.Exists(filePath))
+                                {
+                                    allFiles.Add(filePath);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (allFiles.Count == 0)
+                {
+                    return;
+                }
+
+                // 随机选择一个文件
+                var random = new Random();
+                var selectedFile = allFiles[random.Next(allFiles.Count)];
+                
+                // 载入文件并重置所有测试参数
+                _currentArticlePath = selectedFile;
+                LoadTextFromFile(selectedFile);
+                
+                // 更新菜单选中状态
+                UpdateMenuSelectionForPath(selectedFile);
+                
+                UpdatePlayStopButtonState();
+            }
+            catch
+            {
+                // 静默处理错误
             }
         }
 
@@ -2257,7 +2931,7 @@ namespace WPF_Typing
 
             TestEndTime = DateTime.Now;
             UpdatePlayStopButtonState();
-            
+
             // 停止测试，立即保存数据，然后显示统计对话框
             SaveTestResultIfNeeded();
             ShowAnalysis();
@@ -2284,6 +2958,7 @@ namespace WPF_Typing
                     {
                         PlayStopButton.Style = stopStyle;
                     }
+
                     PlayStopButton.Content = "■";
                 }
                 else
@@ -2294,6 +2969,7 @@ namespace WPF_Typing
                     {
                         PlayStopButton.Style = playStyle;
                     }
+
                     PlayStopButton.Content = "▶";
                 }
             }

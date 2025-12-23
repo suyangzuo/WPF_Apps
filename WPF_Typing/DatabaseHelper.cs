@@ -104,6 +104,82 @@ namespace WPF_Typing
                 )";
 
             createTableCommand.ExecuteNonQuery();
+            
+            // 创建设置表
+            var createSettingsTableCommand = connection.CreateCommand();
+            createSettingsTableCommand.CommandText = @"
+                CREATE TABLE IF NOT EXISTS Settings (
+                    Key TEXT PRIMARY KEY,
+                    Value TEXT NOT NULL
+                )";
+            createSettingsTableCommand.ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// 保存随机模式状态到数据库
+        /// </summary>
+        public static void SaveRandomModeEnabled(bool enabled)
+        {
+            try
+            {
+                InitializeDatabase();
+
+                var dbPath = GetDatabasePath();
+                var connectionString = $"Data Source={dbPath}";
+
+                using var connection = new SqliteConnection(connectionString);
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = @"
+                    INSERT OR REPLACE INTO Settings (Key, Value)
+                    VALUES (@Key, @Value)";
+                command.Parameters.AddWithValue("@Key", "RandomModeEnabled");
+                command.Parameters.AddWithValue("@Value", enabled ? "1" : "0");
+
+                command.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                // 记录错误但不中断程序
+                System.Diagnostics.Debug.WriteLine($"保存随机模式状态失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 从数据库加载随机模式状态
+        /// </summary>
+        public static bool LoadRandomModeEnabled()
+        {
+            try
+            {
+                InitializeDatabase();
+
+                var dbPath = GetDatabasePath();
+                var connectionString = $"Data Source={dbPath}";
+
+                using var connection = new SqliteConnection(connectionString);
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT Value FROM Settings WHERE Key = @Key";
+                command.Parameters.AddWithValue("@Key", "RandomModeEnabled");
+
+                var result = command.ExecuteScalar();
+                if (result != null && result.ToString() == "1")
+                {
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                // 记录错误但不中断程序
+                System.Diagnostics.Debug.WriteLine($"加载随机模式状态失败: {ex.Message}");
+            }
+
+            // 默认返回 false（未选中）
+            return false;
         }
 
         /// <summary>

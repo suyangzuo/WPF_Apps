@@ -15,30 +15,35 @@ namespace WPF_Typing
             double completionRate,
             TimeSpan elapsedTime,
             double accuracy,
-            int backspaceCount)
+            int backspaceCount,
+            int completedChars,
+            int totalChars,
+            int speed)
         {
             InitializeComponent();
 
-            BuildStatisticsSection(testerName, articlePath, testStartTime, testEndTime, completionRate, elapsedTime, accuracy, backspaceCount);
+            BuildStatisticsSection(testerName, articlePath, testStartTime, testEndTime, completionRate, elapsedTime, accuracy, backspaceCount, completedChars, totalChars, speed);
         }
 
         private void BuildStatisticsSection(string testerName, string? articlePath, DateTime? testStartTime, DateTime? testEndTime, 
-            double completionRate, TimeSpan elapsedTime, double accuracy, int backspaceCount)
+            double completionRate, TimeSpan elapsedTime, double accuracy, int backspaceCount, int completedChars, int totalChars, int speed)
         {
             StatisticsText.Inlines.Clear();
 
             // 计算所有标题的最大宽度
-            string[] labels = { "姓名", "练习文章", "测试起始时间", "测试结束时间", "完成率", "用时", "正确率", "退格次数" };
+            string[] labels = { "姓名", "练习文章", "测试起始时间", "测试结束时间", "完成字符数", "完成率", "用时", "正确率", "退格次数", "速度" };
             double maxLabelWidth = CalculateMaxLabelWidth(labels);
 
             AddStatisticLine("姓名", testerName ?? "未知", "#4D8BCF", maxLabelWidth);
             AddArticlePathLine("练习文章", articlePath, "#3BA", maxLabelWidth);
             AddTimeStatisticLine("测试起始时间", FormatDateTime(testStartTime), "#9DCBFF", maxLabelWidth);
             AddTimeStatisticLine("测试结束时间", FormatDateTime(testEndTime), "#9DCBFF", maxLabelWidth);
+            AddCompletedCharsLine("完成字符数", completedChars, totalChars, maxLabelWidth);
             AddPercentageStatisticLine("完成率", completionRate, "#FFA500", maxLabelWidth);
             AddTimeStatisticLine("用时", FormatTimeSpan(elapsedTime), "#c68", maxLabelWidth);
             AddPercentageStatisticLine("正确率", accuracy, "#FFD700", maxLabelWidth);
             AddStatisticLine("退格次数", backspaceCount.ToString(), "#32CD32", maxLabelWidth);
+            AddSpeedLine("速度", speed, "#c68", maxLabelWidth);
         }
 
         private double CalculateMaxLabelWidth(string[] labels)
@@ -119,7 +124,26 @@ namespace WPF_Typing
             AddLabel(label, labelWidth);
             StatisticsText.Inlines.Add(new Run(": ") { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#999")) });
             string formattedValue = FormatPercentage(value);
-            StatisticsText.Inlines.Add(new Run(formattedValue) { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(numberColor)) });
+            
+            // 将数值和小数点分开设置颜色
+            if (formattedValue.Contains('.'))
+            {
+                string[] parts = formattedValue.Split('.');
+                // 添加整数部分
+                StatisticsText.Inlines.Add(new Run(parts[0]) { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(numberColor)) });
+                // 添加小数点
+                StatisticsText.Inlines.Add(new Run(".") { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#999")) });
+                // 添加小数部分（如果存在）
+                if (parts.Length > 1)
+                {
+                    StatisticsText.Inlines.Add(new Run(parts[1]) { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(numberColor)) });
+                }
+            }
+            else
+            {
+                // 如果没有小数点，直接添加整个数值
+                StatisticsText.Inlines.Add(new Run(formattedValue) { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ABC")) });
+            }
             
             // 使用 InlineUIContainer 包装 TextBlock 以设置 Margin
             var percentContainer = new InlineUIContainer
@@ -167,6 +191,77 @@ namespace WPF_Typing
                     StatisticsText.Inlines.Add(new Run("未知") { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(textColor)) });
                 }
             }
+            
+            StatisticsText.Inlines.Add(new LineBreak());
+        }
+
+        private void AddCompletedCharsLine(string label, int completedChars, int totalChars, double labelWidth)
+        {
+            AddLabel(label, labelWidth);
+            StatisticsText.Inlines.Add(new Run(": ") { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#999")) });
+            
+            // 完成字符数 - 使用 GreenYellow
+            StatisticsText.Inlines.Add(new Run(completedChars.ToString()) { Foreground = new SolidColorBrush(Colors.GreenYellow) });
+            
+            // 斜杠，使用 InlineUIContainer 来设置 Margin
+            var slashContainer = new InlineUIContainer
+            {
+                BaselineAlignment = BaselineAlignment.Baseline
+            };
+            var slashTextBlock = new TextBlock
+            {
+                Text = "/",
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#999")),
+                Margin = new Thickness(2, 0, 2, 0) // 左右各2像素边距
+            };
+            slashContainer.Child = slashTextBlock;
+            StatisticsText.Inlines.Add(slashContainer);
+            
+            // 总字符数 - 使用 GreenYellow
+            StatisticsText.Inlines.Add(new Run(totalChars.ToString()) { Foreground = new SolidColorBrush(Colors.GreenYellow) });
+            
+            StatisticsText.Inlines.Add(new LineBreak());
+        }
+
+        private void AddSpeedLine(string label, int speed, string numberColor, double labelWidth)
+        {
+            AddLabel(label, labelWidth);
+            StatisticsText.Inlines.Add(new Run(": ") { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#999")) });
+            
+            // 速度值（整数）
+            StatisticsText.Inlines.Add(new Run(speed.ToString()) { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#B7E")) });
+            
+            // 单位文本"字符/分钟"整体左边距，使用空的 InlineUIContainer 来设置
+            var leftMarginContainer = new InlineUIContainer
+            {
+                BaselineAlignment = BaselineAlignment.Baseline
+            };
+            var leftMarginTextBlock = new TextBlock
+            {
+                Margin = new Thickness(2, 0, 0, 0) // 左边距 2 像素
+            };
+            leftMarginContainer.Child = leftMarginTextBlock;
+            StatisticsText.Inlines.Add(leftMarginContainer);
+            
+            // 添加"字符"
+            StatisticsText.Inlines.Add(new Run("字符") { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#999")) });
+            
+            // 斜杠，使用 InlineUIContainer 来设置左右边距和更深的灰色
+            var slashContainer = new InlineUIContainer
+            {
+                BaselineAlignment = BaselineAlignment.Baseline
+            };
+            var slashTextBlock = new TextBlock
+            {
+                Text = "/",
+                Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#666")), // 更深的灰色
+                Margin = new Thickness(2, 0, 2, 0) // 左右各2像素边距
+            };
+            slashContainer.Child = slashTextBlock;
+            StatisticsText.Inlines.Add(slashContainer);
+            
+            // 添加"分钟"
+            StatisticsText.Inlines.Add(new Run("分钟") { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#999")) });
             
             StatisticsText.Inlines.Add(new LineBreak());
         }

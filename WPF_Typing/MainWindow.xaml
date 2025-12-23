@@ -26,8 +26,8 @@
         <!--  Window drop shadow used for custom chrome window  -->
         <DropShadowEffect
             x:Key="WindowDropShadow"
-            BlurRadius="30"
-            Opacity="0.6"
+            BlurRadius="0"
+            Opacity="0"
             RenderingBias="Quality"
             ShadowDepth="0"
             Color="#000000" />
@@ -281,7 +281,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="Border" Property="Background" Value="#404A60" />
+                                <Setter TargetName="Border" Property="Background" Value="#395579" />
                                 <!--  do not show per-item border on highlight  -->
                                 <Setter TargetName="Border" Property="BorderBrush" Value="Transparent" />
                             </Trigger>
@@ -292,6 +292,57 @@
         </Style>
 
         <!--  Checkable submenu items: also remove per-item borders  -->
+        <Style x:Key="RandomMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Background" Value="#2D2D2D" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="FontFamily" Value="{StaticResource MenuFontFamily}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border
+                            x:Name="Border"
+                            Height="30"
+                            Background="#2D2D2D"
+                            BorderBrush="Transparent"
+                            BorderThickness="0">
+                            <Grid>
+                                <ContentPresenter
+                                    x:Name="HeaderHost"
+                                    Margin="8,0"
+                                    VerticalAlignment="Center"
+                                    ContentSource="Header" />
+                                <Popup
+                                    x:Name="SubMenuPopup"
+                                    AllowsTransparency="True"
+                                    HorizontalOffset="8"
+                                    IsOpen="{TemplateBinding IsSubmenuOpen}"
+                                    Placement="Right"
+                                    VerticalOffset="-4">
+                                    <Border
+                                        x:Name="SubMenuBorder"
+                                        Padding="4"
+                                        Background="#2D2D2D"
+                                        BorderBrush="#2D2D2D"
+                                        BorderThickness="1"
+                                        CornerRadius="6">
+                                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#395579" />
+                                <Setter TargetName="Border" Property="BorderBrush" Value="Transparent" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="CheckableSubMenuItemStyle" TargetType="MenuItem">
             <Setter Property="Background" Value="#2D2D2D" />
             <Setter Property="Foreground" Value="White" />
@@ -412,7 +463,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
                                 <!--  match hover background of other second-level menu items but keep no outer border  -->
-                                <Setter TargetName="Border" Property="Background" Value="#404A60" />
+                                <Setter TargetName="Border" Property="Background" Value="#395579" />
                                 <Setter TargetName="Border" Property="BorderBrush" Value="Transparent" />
                                 <Setter TargetName="Border" Property="BorderThickness" Value="0" />
                             </Trigger>
@@ -465,6 +516,18 @@
                             Source="pack://siteoforigin:,,,/Assets/Images/PNG/十指禅.png"
                             Stretch="Uniform" />
 
+                        <!--  左侧标题"十指禅"  -->
+                        <TextBlock
+                            x:Name="AppTitleText"
+                            Grid.Column="1"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            Margin="0,0,0,0"
+                            FontSize="14"
+                            Foreground="#CCC"
+                            IsHitTestVisible="False"
+                            Text="十指禅" />
+
                         <!--  Buttons remain in right column  -->
                         <StackPanel
                             Grid.Column="2"
@@ -501,9 +564,9 @@
                                 Style="{StaticResource CloseButtonStyle}" />
                         </StackPanel>
 
-                        <!--  overlayed centered title so it's visually centered for the whole title bar  -->
+                        <!--  居中显示文章信息：文件夹名 - 文章名称  -->
                         <TextBlock
-                            x:Name="TitleText"
+                            x:Name="ArticleInfoText"
                             Grid.Column="0"
                             Grid.ColumnSpan="3"
                             HorizontalAlignment="Center"
@@ -512,7 +575,7 @@
                             FontSize="14"
                             Foreground="#CCC"
                             IsHitTestVisible="False"
-                            Text="十指禅" />
+                            Text="" />
                     </Grid>
                 </Border>
             </Grid>
@@ -531,6 +594,19 @@
                 FontFamily="{StaticResource MenuFontFamily}"
                 Foreground="White">
                 <MenuItem Header="文件" Style="{StaticResource DarkMenuItemStyle}">
+                    <MenuItem Click="OpenMenuItem_Click" Style="{StaticResource DarkSubMenuItemStyle}">
+                        <MenuItem.Header>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock
+                                    Margin="0,0,8,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="16"
+                                    Foreground="#4D8BCF"
+                                    Text="📂" />
+                                <TextBlock VerticalAlignment="Center" Text="打开" />
+                            </StackPanel>
+                        </MenuItem.Header>
+                    </MenuItem>
                     <MenuItem Click="ExitMenuItem_Click" Style="{StaticResource DarkSubMenuItemStyle}">
                         <MenuItem.Header>
                             <StackPanel Orientation="Horizontal">
@@ -582,6 +658,26 @@
                                     Foreground="#32CD32"
                                     Text="📊" />
                                 <TextBlock VerticalAlignment="Center" Text="统计" />
+                            </StackPanel>
+                        </MenuItem.Header>
+                    </MenuItem>
+                    <MenuItem
+                        x:Name="RandomMenuItem"
+                        Click="RandomMenuItem_Click"
+                        IsCheckable="True"
+                        IsChecked="False"
+                        Style="{StaticResource RandomMenuItemStyle}">
+                        <MenuItem.Header>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock
+                                    x:Name="RandomEmoji"
+                                    Margin="0,0,8,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="16"
+                                    Foreground="#BBB"
+                                    Text="🔲"
+                                    Opacity="1" />
+                                <TextBlock VerticalAlignment="Center" Text="随机" />
                             </StackPanel>
                         </MenuItem.Header>
                     </MenuItem>
