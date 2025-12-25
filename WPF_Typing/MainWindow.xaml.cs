@@ -1238,7 +1238,7 @@ namespace WPF_Typing
                                             // 鼠标离开时，如果已选中则保持悬停颜色，否则恢复默认颜色
                                             var isSelected = child.Background is SolidColorBrush brush &&
                                                              brush.Color ==
-                                                             (Color)ColorConverter.ConvertFromString("#A47");
+                                                             (Color)ColorConverter.ConvertFromString("#846");
                                             if (!isSelected)
                                             {
                                                 if (seqTb != null && defaultGrayColor != null)
@@ -1396,7 +1396,7 @@ namespace WPF_Typing
                 ClearTextSelectionChecks();
 
                 // 高亮当前选中的三级菜单项（文本文件名）
-                var highlightColor = (Color)ColorConverter.ConvertFromString("#A47"); // 蓝色高亮
+                var highlightColor = (Color)ColorConverter.ConvertFromString("#846"); // 蓝色高亮
                 mi.Background = new SolidColorBrush(highlightColor);
 
                 // 更新选中菜单项的颜色：序号和文章名称显示白色，字符数显示 LightBlue
@@ -1473,7 +1473,7 @@ namespace WPF_Typing
             if (targetMenuItem != null)
             {
                 // 高亮当前选中的三级菜单项（文本文件名）
-                var highlightColor = (Color)ColorConverter.ConvertFromString("#A47");
+                var highlightColor = (Color)ColorConverter.ConvertFromString("#846");
                 targetMenuItem.Background = new SolidColorBrush(highlightColor);
                 
                 // 更新选中菜单项的颜色：序号和文章名称显示白色，字符数显示 LightBlue
