@@ -794,11 +794,12 @@
                     <Grid
                         x:Name="TopRightInfoPanel"
                         Width="Auto"
-                        MaxWidth="1000"
+                        MaxWidth="1200"
                         Margin="0,0,0,0"
                         HorizontalAlignment="Stretch"
                         VerticalAlignment="Center">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
@@ -943,9 +944,33 @@
                             </Grid>
                         </StackPanel>
 
-                        <!--  3) 正确率: (标签 + 只显示百分比)  -->
+                        <!--  2.5) 退格次数  -->
                         <TextBlock
                             Grid.Column="2"
+                            Width="{local:TextWidth Text='退格:9999', FontSize=14, Padding=10}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            FontFamily="{StaticResource MenuFontFamily}"
+                            FontSize="1"
+                            TextAlignment="Left">
+                            <Run
+                                FontSize="14"
+                                Foreground="DarkGray"
+                                Text="退格" />
+                            <Run
+                                FontFamily="{StaticResource MenuFontFamily}"
+                                FontSize="14"
+                                Foreground="DimGray"
+                                Text=":&#8202;" />
+                            <Run
+                                FontSize="14"
+                                Foreground="#FF6B6B"
+                                Text="{Binding BackspaceCount, Mode=OneWay, FallbackValue=0}" />
+                        </TextBlock>
+
+                        <!--  3) 正确率: (标签 + 只显示百分比)  -->
+                        <TextBlock
+                            Grid.Column="3"
                             Width="{local:TextWidth Text='正确率：99.99%', FontSize=14, Padding=10}"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
@@ -982,7 +1007,7 @@
 
                         <!--  4) 速度: 显示数字并带单位 (数字与单位用不同颜色)  -->
                         <TextBlock
-                            Grid.Column="3"
+                            Grid.Column="4"
                             Width="{local:TextWidth Text='速度:9999', FontSize=14, Padding=10}"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
@@ -1006,7 +1031,7 @@
 
                         <!--  5) 已用时间: 时:分:秒 (numbers and colons different colors)  -->
                         <TextBlock
-                            Grid.Column="4"
+                            Grid.Column="5"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             FontFamily="{StaticResource MenuFontFamily}"
@@ -1046,7 +1071,7 @@
 
                         <!--  6) 测试者姓名 (existing binding preserved)  -->
                         <TextBlock
-                            Grid.Column="5"
+                            Grid.Column="6"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             FontFamily="{StaticResource MenuFontFamily}"

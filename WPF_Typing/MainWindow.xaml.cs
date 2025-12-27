@@ -289,6 +289,19 @@ namespace WPF_Typing
             }
         }
 
+        public int BackspaceCount
+        {
+            get => _backspaceCount;
+            private set
+            {
+                if (_backspaceCount != value)
+                {
+                    _backspaceCount = value;
+                    OnPropertyChanged(nameof(BackspaceCount));
+                }
+            }
+        }
+
         // whether the typing run has finished (user typed the very last character)
         private bool _typingFinished = false;
 
@@ -1740,7 +1753,7 @@ namespace WPF_Typing
                 _typingFinished = false;
 
                 // reset statistics
-                _backspaceCount = 0;
+                BackspaceCount = 0;
 
                 // stop timer if running
                 try
@@ -2318,7 +2331,7 @@ namespace WPF_Typing
                 if (_currentLine == 0 && _currentChar == 0) return;
 
                 // Record backspace count
-                _backspaceCount++;
+                BackspaceCount = BackspaceCount + 1;
 
                 // determine position of the character to delete (the one before current caret)
                 int delLine = _currentLine;
