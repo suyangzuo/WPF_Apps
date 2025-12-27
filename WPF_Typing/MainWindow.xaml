@@ -22,6 +22,8 @@
     <Window.Resources>
         <!--  进度转弧形转换器  -->
         <local:ProgressToArcConverter x:Key="ProgressToArcConverter" />
+        <!--  数字部分转换器  -->
+        <local:NumberPartConverter x:Key="NumberPartConverter" />
 
         <!--  Window drop shadow used for custom chrome window  -->
         <DropShadowEffect
@@ -894,25 +896,50 @@
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     Fill="#1A1A1A" />
-                                <!--  Inner: 文本内容（两个Run）  -->
-                                <TextBlock
+                                <!--  Inner: 文本内容（整数部分右对齐，靠近小数点）  -->
+                                <Grid
                                     HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    FontFamily="{StaticResource MenuFontFamily}"
-                                    TextAlignment="Center">
-                                    <Run
+                                    VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock
+                                        Grid.Column="0"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
+                                        FontFamily="{StaticResource MenuFontFamily}"
                                         FontSize="11"
                                         Foreground="#FFA500"
-                                        Text="{Binding ProgressPercent, Mode=OneWay, FallbackValue=0, StringFormat={}{0}}" />
-                                    <InlineUIContainer BaselineAlignment="Baseline">
-                                        <TextBlock
-                                            Margin="-5,0,0,0"
-                                            FontFamily="Google Sans Code, Consolas, HarmonyOS Sans SC, 微软雅黑"
-                                            FontSize="11"
-                                            Foreground="LightSlateGray"
-                                            Text="%" />
-                                    </InlineUIContainer>
-                                </TextBlock>
+                                        Text="{Binding ProgressPercent, Converter={StaticResource NumberPartConverter}, ConverterParameter=Integer, Mode=OneWay, FallbackValue=0}" />
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        FontFamily="{StaticResource MenuFontFamily}"
+                                        FontSize="11"
+                                        Foreground="#89A"
+                                        Text="{Binding ProgressPercent, Converter={StaticResource NumberPartConverter}, ConverterParameter=Dot, Mode=OneWay, FallbackValue=''}" />
+                                    <TextBlock
+                                        Grid.Column="2"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        FontFamily="{StaticResource MenuFontFamily}"
+                                        FontSize="11"
+                                        Foreground="#FFA500"
+                                        Text="{Binding ProgressPercent, Converter={StaticResource NumberPartConverter}, ConverterParameter=DecimalOnly, Mode=OneWay, FallbackValue=''}" />
+                                    <TextBlock
+                                        Grid.Column="3"
+                                        Margin="2,0,0,0"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Center"
+                                        FontFamily="Google Sans Code, Consolas, HarmonyOS Sans SC, 微软雅黑"
+                                        FontSize="11"
+                                        Foreground="LightSlateGray"
+                                        Text="%" />
+                                </Grid>
                             </Grid>
                         </StackPanel>
 
@@ -937,7 +964,15 @@
                             <Run
                                 FontSize="14"
                                 Foreground="#FFD700"
-                                Text="{Binding AccuracyPercent, Mode=OneWay, FallbackValue=0, StringFormat={}{0}}" />
+                                Text="{Binding AccuracyPercent, Converter={StaticResource NumberPartConverter}, ConverterParameter=Integer, Mode=OneWay, FallbackValue=0}" />
+                            <Run
+                                FontSize="14"
+                                Foreground="#89A"
+                                Text="{Binding AccuracyPercent, Converter={StaticResource NumberPartConverter}, ConverterParameter=Dot, Mode=OneWay, FallbackValue=''}" />
+                            <Run
+                                FontSize="14"
+                                Foreground="#FFD700"
+                                Text="{Binding AccuracyPercent, Converter={StaticResource NumberPartConverter}, ConverterParameter=DecimalOnly, Mode=OneWay, FallbackValue=''}" />
                             <Run
                                 FontFamily="HarmonyOS Sans SC, 微软雅黑"
                                 FontSize="12"
