@@ -37,20 +37,24 @@ namespace WPF_Typing
                     int dotIndex = formatted.IndexOf('.');
                     if (dotIndex < 0)
                         return ""; // 如果没有小数点，返回空字符串
-                    string decimalPart = formatted.Substring(dotIndex);
-                    // 检查小数部分是否全为0
-                    if (decimalPart == ".00")
+                    string decimalPart = formatted.Substring(dotIndex + 1);
+                    // 去除末尾的0
+                    decimalPart = decimalPart.TrimEnd('0');
+                    // 如果小数部分全为0，返回空字符串
+                    if (string.IsNullOrEmpty(decimalPart))
                         return ""; // 如果没有有效小数部分，返回空字符串
                     return ".";
                 case "DecimalOnly":
-                    // 返回小数部分（不包含小数点），保留2位小数
+                    // 返回小数部分（不包含小数点），去除末尾的0
                     formatted = num.ToString("F2", CultureInfo.InvariantCulture);
                     dotIndex = formatted.IndexOf('.');
                     if (dotIndex < 0)
                         return ""; // 如果没有小数点，返回空字符串
                     decimalPart = formatted.Substring(dotIndex + 1);
-                    // 检查小数部分是否全为0
-                    if (decimalPart == "00")
+                    // 去除末尾的0
+                    decimalPart = decimalPart.TrimEnd('0');
+                    // 如果小数部分全为0，返回空字符串
+                    if (string.IsNullOrEmpty(decimalPart))
                         return ""; // 如果没有有效小数部分，返回空字符串
                     return decimalPart;
                 default:
