@@ -755,37 +755,39 @@
                         x:Name="TypingDisplayScrollViewer"
                         HorizontalScrollBarVisibility="Disabled"
                         VerticalScrollBarVisibility="Hidden">
-                        <RichTextBox
-                            x:Name="TypingDisplay"
-                            Height="Auto"
-                            MaxWidth="1250"
-                            HorizontalAlignment="Stretch"
-                            AcceptsReturn="False"
-                            AcceptsTab="False"
-                            Background="#151515"
-                            BorderThickness="0"
-                            FontFamily="{StaticResource MenuFontFamily}"
-                            FontSize="24"
-                            Foreground="#777"
-                            HorizontalScrollBarVisibility="Disabled"
-                            IsDocumentEnabled="True"
-                            IsReadOnly="True"
-                            PreviewKeyDown="TypingDisplay_PreviewKeyDown"
-                            PreviewTextInput="TypingDisplay_PreviewTextInput"
-                            SnapsToDevicePixels="True"
-                            TextOptions.TextFormattingMode="Display"
-                            UseLayoutRounding="True">
-                            <FlowDocument>
-                                <Paragraph />
-                            </FlowDocument>
-                        </RichTextBox>
+                        <AdornerDecorator>
+                            <RichTextBox
+                                x:Name="TypingDisplay"
+                                Height="Auto"
+                                MaxWidth="1250"
+                                HorizontalAlignment="Stretch"
+                                AcceptsReturn="False"
+                                AcceptsTab="False"
+                                Background="#151515"
+                                BorderThickness="0"
+                                FontFamily="{StaticResource MenuFontFamily}"
+                                FontSize="24"
+                                Foreground="#777"
+                                HorizontalScrollBarVisibility="Disabled"
+                                IsDocumentEnabled="True"
+                                IsReadOnly="True"
+                                PreviewKeyDown="TypingDisplay_PreviewKeyDown"
+                                PreviewTextInput="TypingDisplay_PreviewTextInput"
+                                SnapsToDevicePixels="True"
+                                TextOptions.TextFormattingMode="Display"
+                                UseLayoutRounding="True">
+                                <FlowDocument>
+                                    <Paragraph />
+                                </FlowDocument>
+                            </RichTextBox>
+                        </AdornerDecorator>
                     </ScrollViewer>
                 </Border>
 
                 <StackPanel
                     Width="Auto"
                     MaxWidth="1000"
-                    Margin="25,5,25,0"
+                    Margin="25,0,25,0"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Top"
                     Panel.ZIndex="20"
@@ -864,36 +866,44 @@
                             </TextBlock>
                             <!--  Outer: 圆形进度条容器  -->
                             <Grid
-                                Width="60"
-                                Height="60"
+                                Width="70"
+                                Height="70"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center"
                                 ClipToBounds="False">
                                 <!--  Outer: 圆形边框  -->
                                 <Ellipse
-                                    Width="56"
-                                    Height="56"
+                                    Width="66"
+                                    Height="66"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     Fill="Transparent"
                                     Stroke="#234"
-                                    StrokeThickness="2" />
+                                    StrokeThickness="3" />
                                 <!--  Outer: 进度渐变（使用Path绘制弧形）  -->
                                 <Path
-                                    Width="60"
-                                    Height="60"
+                                    Width="70"
+                                    Height="70"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
-                                    Data="{Binding ProgressPercent, Converter={StaticResource ProgressToArcConverter}, Mode=OneWay}"
                                     Stroke="DarkSeaGreen"
                                     StrokeEndLineCap="Round"
                                     StrokeStartLineCap="Round"
-                                    StrokeThickness="2"
-                                    Stretch="None" />
+                                    StrokeThickness="3"
+                                    Stretch="None">
+                                    <Path.Data>
+                                        <MultiBinding Converter="{StaticResource ProgressToArcConverter}">
+                                            <Binding Path="ProgressPercent" />
+                                            <Binding RelativeSource="{RelativeSource Self}" Path="ActualWidth" />
+                                            <Binding RelativeSource="{RelativeSource Self}" Path="ActualHeight" />
+                                            <Binding RelativeSource="{RelativeSource Self}" Path="StrokeThickness" />
+                                        </MultiBinding>
+                                    </Path.Data>
+                                </Path>
                                 <!--  Inner: 内圆（半径小5，即直径小10）  -->
                                 <Ellipse
-                                    Width="46"
-                                    Height="46"
+                                    Width="56"
+                                    Height="56"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
                                     Fill="#1A1A1A" />
@@ -912,7 +922,7 @@
                                         HorizontalAlignment="Right"
                                         VerticalAlignment="Center"
                                         FontFamily="{StaticResource MenuFontFamily}"
-                                        FontSize="11"
+                                        FontSize="14"
                                         Foreground="#FFA500"
                                         Text="{Binding ProgressPercent, Converter={StaticResource NumberPartConverter}, ConverterParameter=Integer, Mode=OneWay, FallbackValue=0}" />
                                     <TextBlock
@@ -920,7 +930,7 @@
                                         HorizontalAlignment="Left"
                                         VerticalAlignment="Center"
                                         FontFamily="{StaticResource MenuFontFamily}"
-                                        FontSize="11"
+                                        FontSize="14"
                                         Foreground="#89A"
                                         Text="{Binding ProgressPercent, Converter={StaticResource NumberPartConverter}, ConverterParameter=Dot, Mode=OneWay, FallbackValue=''}" />
                                     <TextBlock
@@ -928,7 +938,7 @@
                                         HorizontalAlignment="Left"
                                         VerticalAlignment="Center"
                                         FontFamily="{StaticResource MenuFontFamily}"
-                                        FontSize="11"
+                                        FontSize="14"
                                         Foreground="#FFA500"
                                         Text="{Binding ProgressPercent, Converter={StaticResource NumberPartConverter}, ConverterParameter=DecimalOnly, Mode=OneWay, FallbackValue=''}" />
                                     <TextBlock
@@ -937,7 +947,7 @@
                                         HorizontalAlignment="Left"
                                         VerticalAlignment="Center"
                                         FontFamily="Google Sans Code, Consolas, HarmonyOS Sans SC, 微软雅黑"
-                                        FontSize="11"
+                                        FontSize="14"
                                         Foreground="LightSlateGray"
                                         Text="%" />
                                 </Grid>

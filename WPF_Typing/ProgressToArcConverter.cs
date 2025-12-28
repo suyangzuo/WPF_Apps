@@ -9,19 +9,20 @@ namespace WPF_Typing
     /// <summary>
     /// 将进度百分比转换为圆形进度条的PathGeometry
     /// </summary>
-    public class ProgressToArcConverter : IValueConverter
+    public class ProgressToArcConverter : IMultiValueConverter
     {
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
         {
-            double progress = 0;
-            if (value is double d)
-            {
-                progress = d;
-            }
-            else if (value != null && double.TryParse(value.ToString(), out double parsed))
-            {
-                progress = parsed;
-            }
+            if (values == null || values.Length == 0)
+                return new PathGeometry();
+
+            double progress = TryToDouble(values[0]);
+            double width = values.Length > 1 ? TryToDouble(values[1]) : 0;
+            double height = values.Length > 2 ? TryToDouble(values[2]) : 0;
+            double strokeThickness = values.Length > 3 ? TryToDouble(values[3]) : 0;
+
+            if (width <= 0 || height <= 0)
+                return new PathGeometry();
 
             // 限制进度范围
             progress = Math.Max(0, Math.Min(100, progress));
@@ -32,14 +33,15 @@ namespace WPF_Typing
                 return new PathGeometry();
             }
 
-            // 圆形半径计算：
-            // - 外圆Ellipse: 50x50，半径25，StrokeThickness=2，内边缘在半径24
-            // - 内圆Ellipse: 40x40，半径20，外边缘在半径20
-            // - 缝隙中间位置: (20 + 24) / 2 = 22
-            // - Path的StrokeThickness=2，所以中心线应该在半径22
-            const double radius = 27;
-            const double centerX = 30;
-            const double centerY = 30;
+            // 以Path自身的尺寸为基准计算中心点与半径，避免尺寸调整后出现偏移。
+            // padding 用来给弧线留一点点内缩，避免与外圈描边/圆角端点产生叠加或裁切。
+            double size = Math.Min(width, height);
+            double centerX = width / 2.0;
+            double centerY = height / 2.0;
+            const double padding = 2.0;
+            double radius = (size / 2.0) - padding - (strokeThickness / 2.0);
+            if (radius <= 0)
+                return new PathGeometry();
 
             // 将进度百分比转换为角度（0-360度），从顶部（-90度）开始
             double angle = (progress / 100.0) * 360.0;
@@ -100,9 +102,30 @@ namespace WPF_Typing
             return geometry;
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
+        }
+
+        private static double TryToDouble(object value)
+        {
+            if (value is double d)
+                return d;
+            if (value is float f)
+                return f;
+            if (value is int i)
+                return i;
+            if (value is long l)
+                return l;
+            if (value is decimal m)
+                return (double)m;
+
+            if (value == null)
+                return 0;
+
+            return double.TryParse(value.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed)
+                ? parsed
+                : 0;
         }
     }
 }

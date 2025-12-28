@@ -57,6 +57,28 @@ namespace WPF_Typing
         private Point _dragStartScreenPosition;
 
         private ScrollViewer? _typingScrollViewer = null;
+        private AdornerLayer? _typingErrorAdornerLayer = null;
+        private TypingErrorAdorner? _typingErrorAdorner = null;
+        private bool _typingErrorAdornerRenderQueued = false;
+
+        private Rect GetTypingDisplayVisibleRect()
+        {
+            if (TypingDisplay == null || _typingScrollViewer == null) return Rect.Empty;
+
+            try
+            {
+                var topLeft = _typingScrollViewer.TranslatePoint(new Point(0, 0), TypingDisplay);
+                var bottomRight = _typingScrollViewer.TranslatePoint(
+                    new Point(_typingScrollViewer.ViewportWidth, _typingScrollViewer.ViewportHeight),
+                    TypingDisplay);
+
+                return new Rect(topLeft, bottomRight);
+            }
+            catch
+            {
+                return Rect.Empty;
+            }
+        }
         private DispatcherTimer? _scrollTimer = null;
         private bool _isScrolling = false;
         private DispatcherTimer? _sizeChangedTimer = null;
@@ -739,11 +761,68 @@ namespace WPF_Typing
 
                         _typingScrollViewer.ScrollChanged += TypingDisplay_ScrollChanged;
                     }
+
+                    InitializeTypingErrorAdorner();
                 }
             }
             catch
             {
             }
+        }
+
+        private void InitializeTypingErrorAdorner()
+        {
+            if (TypingDisplay == null) return;
+
+            // Delay until layout is ready so AdornerLayer is available.
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+            {
+                try
+                {
+                    if (TypingDisplay == null) return;
+
+                    var layer = AdornerLayer.GetAdornerLayer(TypingDisplay);
+                    if (layer == null) return;
+
+                    _typingErrorAdornerLayer = layer;
+
+                    if (_typingErrorAdorner == null)
+                    {
+                        _typingErrorAdorner = new TypingErrorAdorner(
+                            TypingDisplay,
+                            key => _runMap.TryGetValue(key, out var run) ? run : null,
+                            GetTypingDisplayVisibleRect);
+
+                        _typingErrorAdornerLayer.Add(_typingErrorAdorner);
+                    }
+
+                    RequestTypingErrorAdornerRender();
+                }
+                catch
+                {
+                    // ignore
+                }
+            }));
+        }
+
+        private void RequestTypingErrorAdornerRender()
+        {
+            if (_typingErrorAdorner == null) return;
+            if (_typingErrorAdornerRenderQueued) return;
+
+            _typingErrorAdornerRenderQueued = true;
+
+            Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(() =>
+            {
+                _typingErrorAdornerRenderQueued = false;
+                try
+                {
+                    _typingErrorAdorner?.Invalidate();
+                }
+                catch
+                {
+                }
+            }));
         }
 
         private void TypingDisplay_SizeChanged(object? sender, SizeChangedEventArgs e)
@@ -770,6 +849,7 @@ namespace WPF_Typing
                     {
                         _needsFullRebuild = true;
                         RenderVisibleLines();
+                        _typingErrorAdorner?.NotifyLayoutChanged();
                     }
                     catch
                     {
@@ -1732,6 +1812,7 @@ namespace WPF_Typing
                 _currentChar = 0;
                 _charStates.Clear();
                 _errorChars.Clear();
+                _typingErrorAdorner?.ClearErrors();
                 _runMap.Clear();
                 _changedChars.Clear();
                 _needsFullRebuild = true;
@@ -1817,6 +1898,8 @@ namespace WPF_Typing
             {
                 UpdateChangedCharacters();
             }
+
+            RequestTypingErrorAdornerRender();
         }
 
         private void BuildInitialDocument()
@@ -1828,7 +1911,7 @@ namespace WPF_Typing
 
             double lineHeight = doc.FontSize * 3;
             doc.LineHeight = lineHeight;
-            doc.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
+            doc.LineStackingStrategy = LineStackingStrategy.MaxHeight;
 
             doc.PageHeight = 1000000;
 
@@ -1916,7 +1999,12 @@ namespace WPF_Typing
                 var border = TypingDisplay.BorderThickness;
                 double borderPad = border.Top + border.Bottom;
 
-                double desiredHeight = documentLineHeight * VisibleLineCount + docPadding + ctrlPad + borderPad + 2.0;
+                // Reserve extra space so the last visible line can still show the "actual typed char" overlay
+                // that is drawn under the original character (TypingErrorAdorner uses y = rect.Top + fontSize + 4).
+                double fontSize = TypingDisplay.FontSize > 0 ? TypingDisplay.FontSize : 24.0;
+                double errorOverlayReserve = Math.Ceiling(fontSize + 8.0);
+
+                double desiredHeight = documentLineHeight * VisibleLineCount + docPadding + ctrlPad + borderPad + errorOverlayReserve - 32;
                 _typingScrollViewer.Height = desiredHeight;
 
                 TypingDisplay.UpdateLayout();
@@ -2194,6 +2282,7 @@ namespace WPF_Typing
         {
             try
             {
+                RequestTypingErrorAdornerRender();
             }
             catch
             {
@@ -2348,6 +2437,7 @@ namespace WPF_Typing
                 if (_charStates.ContainsKey(delKey)) _charStates.Remove(delKey);
                 // 同时清除错误字符记录
                 _errorChars.Remove(delKey);
+                _typingErrorAdorner?.RemoveError(delKey);
                 _changedChars.Add(delKey);
 
                 // Recompute typing stats after deletion
@@ -2458,11 +2548,14 @@ namespace WPF_Typing
                     ExpectedChar = expected,
                     ActualChar = typed
                 };
+
+                _typingErrorAdorner?.UpsertError(key, _errorChars[key]);
             }
             else
             {
                 // 如果之前有错误记录，清除它
                 _errorChars.Remove(key);
+                _typingErrorAdorner?.RemoveError(key);
             }
 
             _changedChars.Add(key);
