@@ -169,6 +169,6 @@ dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile
 - 支持倒计时功能和详细统计分析
 - 完整的深色主题和自定义对话框系统
 
-### v1.0.0
+### v1.1.0
 - 初始版本发布
 - 包含WPF_Clock桌面时钟应用

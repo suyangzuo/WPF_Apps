@@ -13,7 +13,7 @@
 		<IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
 		<Product>NTZZ</Product>
 		<Company>苏扬</Company>
-		<Version>1.0.0</Version>
+		<Version>1.1.0</Version>
 		<DebugType>embedded</DebugType>
 	</PropertyGroup>
 

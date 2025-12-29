@@ -36,8 +36,8 @@ namespace WPF_Typing
 
             AddStatisticLine("姓名", testerName ?? "未知", "#4D8BCF", maxLabelWidth);
             AddArticlePathLine("练习文章", articlePath, "#3BA", maxLabelWidth);
-            AddTimeStatisticLine("测试起始时间", FormatDateTime(testStartTime), "#9DCBFF", maxLabelWidth);
-            AddTimeStatisticLine("测试结束时间", FormatDateTime(testEndTime), "#9DCBFF", maxLabelWidth);
+            AddDateTimeStatisticLine("测试起始时间", testStartTime, "#9DCBFF", "#C0C0C0", maxLabelWidth);
+            AddDateTimeStatisticLine("测试结束时间", testEndTime, "#9DCBFF", "#C0C0C0", maxLabelWidth);
             AddCompletedCharsLine("完成字符数", completedChars, totalChars, maxLabelWidth);
             AddPercentageStatisticLine("完成率", completionRate, "#FFA500", maxLabelWidth);
             AddTimeStatisticLine("用时", FormatTimeSpan(elapsedTime), "#c68", maxLabelWidth);
@@ -117,6 +117,65 @@ namespace WPF_Typing
             }
             
             StatisticsText.Inlines.Add(new LineBreak());
+        }
+
+        private void AddDateTimeStatisticLine(string label, DateTime? dateTimeValue, string numberColor, string unitColor, double labelWidth)
+        {
+            AddLabel(label, labelWidth);
+
+            var separatorBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#999"));
+            var numberBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(numberColor));
+            var unitBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(unitColor));
+
+            StatisticsText.Inlines.Add(new Run(": ") { Foreground = separatorBrush });
+
+            if (!dateTimeValue.HasValue)
+            {
+                StatisticsText.Inlines.Add(new Run("未记录") { Foreground = numberBrush });
+                StatisticsText.Inlines.Add(new LineBreak());
+                return;
+            }
+
+            DateTime dt = dateTimeValue.Value;
+            string[] dateDigits = { dt.Year.ToString("D4"), dt.Month.ToString("D2"), dt.Day.ToString("D2") };
+            string[] dateUnits = { "年", "月", "日" };
+
+            for (int i = 0; i < dateDigits.Length; i++)
+            {
+                StatisticsText.Inlines.Add(new Run(dateDigits[i]) { Foreground = numberBrush });
+                StatisticsText.Inlines.Add(CreateUnitInline(dateUnits[i], unitBrush));
+            }
+
+            StatisticsText.Inlines.Add(new Run(" ") { Foreground = unitBrush });
+
+            string[] timeParts = { dt.Hour.ToString("D2"), dt.Minute.ToString("D2"), dt.Second.ToString("D2") };
+            for (int i = 0; i < timeParts.Length; i++)
+            {
+                StatisticsText.Inlines.Add(new Run(timeParts[i]) { Foreground = numberBrush });
+                if (i < timeParts.Length - 1)
+                {
+                    StatisticsText.Inlines.Add(new Run(":") { Foreground = separatorBrush });
+                }
+            }
+
+            StatisticsText.Inlines.Add(new LineBreak());
+        }
+
+        private Inline CreateUnitInline(string text, Brush foreground)
+        {
+            var container = new InlineUIContainer
+            {
+                BaselineAlignment = BaselineAlignment.Baseline
+            };
+
+            container.Child = new TextBlock
+            {
+                Text = text,
+                Foreground = foreground,
+                Margin = new Thickness(2, 0, 2, 0)
+            };
+
+            return container;
         }
 
         private void AddPercentageStatisticLine(string label, double value, string numberColor, double labelWidth)
@@ -264,12 +323,6 @@ namespace WPF_Typing
             StatisticsText.Inlines.Add(new Run("分钟") { Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#999")) });
             
             StatisticsText.Inlines.Add(new LineBreak());
-        }
-
-        private string FormatDateTime(DateTime? dt)
-        {
-            if (!dt.HasValue) return "未记录";
-            return $"{dt.Value.Hour:D2}:{dt.Value.Minute:D2}:{dt.Value.Second:D2}";
         }
 
         private string FormatTimeSpan(TimeSpan ts)

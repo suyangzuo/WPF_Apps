@@ -2192,7 +2192,7 @@ namespace WPF_Typing
                     return;
                 }
 
-                const int duration = 300;
+                const int duration = 250;
                 double distance = targetOffset - currentOffset;
                 double startOffset = currentOffset;
                 DateTime startTime = DateTime.Now;

@@ -94,7 +94,7 @@
                         Foreground="#CCC"
                         HorizontalAlignment="Center"
                         Margin="0,0,0,15"
-                        Text="版本: 1.0.0" />
+                        Text="版本: 1.1.0" />
                     <TextBlock
                         FontFamily="{DynamicResource AppFontFamily}"
                         FontSize="14"
