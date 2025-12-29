@@ -49,6 +49,13 @@ namespace WPF_Typing
 
         private const char ZeroWidthSpaceChar = '\u200B';
 
+        // Extra tolerance (in DIPs) for detecting the resize edge zone.
+        // This expands the effective hit-test area used by WindowChrome (cursor + resizing).
+        private const double ResizeEdgeHitTestTolerance = 5.0;
+
+        private bool _resizeToleranceApplied = false;
+        private Thickness? _originalResizeBorderThickness;
+
 
         // Custom maximize state: when true the window is "maximized" with an outer margin
         private bool _isCustomMaximized;
@@ -747,6 +754,8 @@ namespace WPF_Typing
             // Apply WindowChrome hit test settings at runtime only (designer cannot parse attached attributes)
             if (!DesignerProperties.GetIsInDesignMode(this))
             {
+                ApplyResizeEdgeTolerance();
+
                 if (AppTitleText != null)
                     WindowChrome.SetIsHitTestVisibleInChrome(AppTitleText, false);
                 if (ArticleInfoText != null)
@@ -785,6 +794,25 @@ namespace WPF_Typing
             catch
             {
             }
+        }
+
+        private void ApplyResizeEdgeTolerance()
+        {
+            if (_resizeToleranceApplied) return;
+
+            var chrome = WindowChrome.GetWindowChrome(this);
+            if (chrome == null) return;
+
+            _originalResizeBorderThickness ??= chrome.ResizeBorderThickness;
+
+            var baseThickness = _originalResizeBorderThickness.Value;
+            chrome.ResizeBorderThickness = new Thickness(
+                baseThickness.Left + ResizeEdgeHitTestTolerance,
+                baseThickness.Top + ResizeEdgeHitTestTolerance,
+                baseThickness.Right + ResizeEdgeHitTestTolerance,
+                baseThickness.Bottom + ResizeEdgeHitTestTolerance);
+
+            _resizeToleranceApplied = true;
         }
 
         private void InitializeTypingErrorAdorner()
@@ -2697,6 +2725,13 @@ namespace WPF_Typing
         {
             try
             {
+                // If the mouse is near a resizable edge, do not start title-bar drag/maximize;
+                // let WindowChrome / the system handle resizing.
+                if (IsMouseInResizeEdgeZone(e.GetPosition(this)))
+                {
+                    return;
+                }
+
                 if (e.ClickCount == 2)
                 {
                     ToggleMaximize();
@@ -2725,6 +2760,31 @@ namespace WPF_Typing
             {
                 // ignore if DragMove fails during design-time
             }
+        }
+
+        private bool IsMouseInResizeEdgeZone(Point positionInWindow)
+        {
+            // No resize when maximized/custom-maximized.
+            if (_isCustomMaximized || WindowState == WindowState.Maximized) return false;
+
+            var width = ActualWidth;
+            var height = ActualHeight;
+            if (width <= 0 || height <= 0) return false;
+
+            Thickness resizeThickness;
+            try
+            {
+                resizeThickness = WindowChrome.GetWindowChrome(this)?.ResizeBorderThickness ?? new Thickness(0);
+            }
+            catch
+            {
+                resizeThickness = new Thickness(0);
+            }
+
+            return positionInWindow.X <= resizeThickness.Left
+                   || positionInWindow.X >= width - resizeThickness.Right
+                   || positionInWindow.Y <= resizeThickness.Top
+                   || positionInWindow.Y >= height - resizeThickness.Bottom;
         }
 
         private void WindowTitleBar_MouseMove(object sender, MouseEventArgs e)
