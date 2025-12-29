@@ -47,6 +47,9 @@ namespace WPF_Typing
         private readonly string _stateFilePath;
         private readonly string _textsRoot;
 
+        private const char ZeroWidthSpaceChar = '\u200B';
+
+
         // Custom maximize state: when true the window is "maximized" with an outer margin
         private bool _isCustomMaximized;
         private Rect _restoreBounds = Rect.Empty; // stores normal window bounds to restore to
@@ -91,6 +94,12 @@ namespace WPF_Typing
         
         // Random mode flag
         private bool _randomModeEnabled = false;
+
+        // Break sentence menu flag (true when checkbox is checked)
+        private bool _breakSentenceEnabled = false;
+
+        // Allow breaking words across lines when true (default behavior with 断句未选中)
+        private bool _allowMidWordWrap = true;
 
         public string TesterName
         {
@@ -717,6 +726,14 @@ namespace WPF_Typing
             
             // 初始化随机菜单项的Emoji显示
             UpdateRandomEmoji();
+
+            _breakSentenceEnabled = DatabaseHelper.LoadBreakSentenceEnabled();
+            _allowMidWordWrap = !_breakSentenceEnabled;
+            if (BreakSentenceMenuItem != null)
+            {
+                BreakSentenceMenuItem.IsChecked = _breakSentenceEnabled;
+            }
+            UpdateBreakSentenceIndicator();
             
             // Restore window position and size if available
             TryRestoreWindowState();
@@ -1909,7 +1926,7 @@ namespace WPF_Typing
             doc.FontSize = 24;
             doc.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#CCCCCC"));
 
-            double lineHeight = doc.FontSize * 3;
+            double lineHeight = doc.FontSize * 3.5;
             doc.LineHeight = lineHeight;
             doc.LineStackingStrategy = LineStackingStrategy.MaxHeight;
 
@@ -1937,7 +1954,7 @@ namespace WPF_Typing
 
                 if (line.Length == 0)
                 {
-                    var zr = new System.Windows.Documents.Run("\u200B")
+                    var zr = new System.Windows.Documents.Run(ZeroWidthSpaceChar.ToString())
                     {
                         Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#777"))
                     };
@@ -1950,7 +1967,7 @@ namespace WPF_Typing
                     {
                         var ch = line[ci];
                         string key = $"{li}:{ci}";
-                        var run = new System.Windows.Documents.Run(ch.ToString());
+                        var run = new System.Windows.Documents.Run(GetDisplayTextForChar(ch));
 
                         ApplyCharacterStyle(run, li, ci, ch, key);
 
@@ -1981,6 +1998,16 @@ namespace WPF_Typing
             _changedChars.Clear();
 
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => { SetTypingDisplayHeight(); }));
+        }
+
+        private string GetDisplayTextForChar(char ch)
+        {
+            if (_allowMidWordWrap && !char.IsWhiteSpace(ch))
+            {
+                return string.Concat(ch, ZeroWidthSpaceChar);
+            }
+
+            return ch.ToString();
         }
 
         private void SetTypingDisplayHeight()
@@ -2880,6 +2907,27 @@ namespace WPF_Typing
             ShowAnalysis();
         }
 
+        private void BreakSentenceMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not MenuItem menuItem) return;
+
+            _breakSentenceEnabled = menuItem.IsChecked;
+            _allowMidWordWrap = !_breakSentenceEnabled;
+
+            UpdateBreakSentenceIndicator();
+
+            DatabaseHelper.SaveBreakSentenceEnabled(_breakSentenceEnabled);
+
+            if (TypedCount > 0)
+            {
+                return;
+            }
+
+            _needsFullRebuild = true;
+            RenderVisibleLines();
+            PlaceCaretAtCurrent();
+        }
+
         private void HelpMenuItem_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -2952,6 +3000,22 @@ namespace WPF_Typing
                             tb.Text = "🔲";
                             tb.Opacity = 1.0;
                         }
+                        break;
+                    }
+                }
+            }
+        }
+
+        private void UpdateBreakSentenceIndicator()
+        {
+            if (BreakSentenceMenuItem?.Header is StackPanel panel)
+            {
+                foreach (var child in panel.Children)
+                {
+                    if (child is TextBlock tb && tb.Name == "BreakSentenceIndicator")
+                    {
+                        tb.Text = _breakSentenceEnabled ? "☑" : "🔲";
+                        tb.Opacity = 1.0;
                         break;
                     }
                 }

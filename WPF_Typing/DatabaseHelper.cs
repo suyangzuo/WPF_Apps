@@ -183,6 +183,70 @@ namespace WPF_Typing
         }
 
         /// <summary>
+        /// 保存断句模式状态到数据库
+        /// </summary>
+        public static void SaveBreakSentenceEnabled(bool enabled)
+        {
+            try
+            {
+                InitializeDatabase();
+
+                var dbPath = GetDatabasePath();
+                var connectionString = $"Data Source={dbPath}";
+
+                using var connection = new SqliteConnection(connectionString);
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = @"
+                    INSERT OR REPLACE INTO Settings (Key, Value)
+                    VALUES (@Key, @Value)";
+                command.Parameters.AddWithValue("@Key", "BreakSentenceEnabled");
+                command.Parameters.AddWithValue("@Value", enabled ? "1" : "0");
+
+                command.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"保存断句模式状态失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 从数据库加载断句模式状态
+        /// </summary>
+        public static bool LoadBreakSentenceEnabled()
+        {
+            try
+            {
+                InitializeDatabase();
+
+                var dbPath = GetDatabasePath();
+                var connectionString = $"Data Source={dbPath}";
+
+                using var connection = new SqliteConnection(connectionString);
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT Value FROM Settings WHERE Key = @Key";
+                command.Parameters.AddWithValue("@Key", "BreakSentenceEnabled");
+
+                var result = command.ExecuteScalar();
+                if (result != null && result.ToString() == "1")
+                {
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"加载断句模式状态失败: {ex.Message}");
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// 保存测试结果到数据库
         /// </summary>
         public static void SaveTestResult(TestResult result)

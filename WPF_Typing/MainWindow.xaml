@@ -522,9 +522,9 @@
                         <TextBlock
                             x:Name="AppTitleText"
                             Grid.Column="1"
+                            Margin="0,0,0,0"
                             HorizontalAlignment="Left"
                             VerticalAlignment="Center"
-                            Margin="0,0,0,0"
                             FontSize="14"
                             Foreground="#CCC"
                             IsHitTestVisible="False"
@@ -677,9 +677,28 @@
                                     VerticalAlignment="Center"
                                     FontSize="16"
                                     Foreground="#BBB"
-                                    Text="🔲"
-                                    Opacity="1" />
+                                    Opacity="1"
+                                    Text="🔲" />
                                 <TextBlock VerticalAlignment="Center" Text="随机" />
+                            </StackPanel>
+                        </MenuItem.Header>
+                    </MenuItem>
+                    <MenuItem
+                        x:Name="BreakSentenceMenuItem"
+                        Click="BreakSentenceMenuItem_Click"
+                        IsCheckable="True"
+                        IsChecked="False"
+                        Style="{StaticResource RandomMenuItemStyle}">
+                        <MenuItem.Header>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock
+                                    x:Name="BreakSentenceIndicator"
+                                    Margin="0,0,8,0"
+                                    VerticalAlignment="Center"
+                                    FontSize="16"
+                                    Foreground="#BBB"
+                                    Text="🔲" />
+                                <TextBlock VerticalAlignment="Center" Text="断行" />
                             </StackPanel>
                         </MenuItem.Header>
                     </MenuItem>
@@ -812,7 +831,9 @@
                         <!--  1) 已输入字符数 / 总字符数 (label + numbers; label 和数字用不同颜色)  -->
                         <TextBlock
                             Grid.Column="0"
-                            Width="{local:TextWidth Text='已输入:9999/9999', FontSize=14, Padding=10}"
+                            Width="{local:TextWidth Text='已输入:9999/9999',
+                                                    FontSize=14,
+                                                    Padding=10}"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             FontFamily="{StaticResource MenuFontFamily}"
@@ -886,17 +907,17 @@
                                     Height="70"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
+                                    Stretch="None"
                                     Stroke="DarkSeaGreen"
                                     StrokeEndLineCap="Round"
                                     StrokeStartLineCap="Round"
-                                    StrokeThickness="3"
-                                    Stretch="None">
+                                    StrokeThickness="3">
                                     <Path.Data>
                                         <MultiBinding Converter="{StaticResource ProgressToArcConverter}">
                                             <Binding Path="ProgressPercent" />
-                                            <Binding RelativeSource="{RelativeSource Self}" Path="ActualWidth" />
-                                            <Binding RelativeSource="{RelativeSource Self}" Path="ActualHeight" />
-                                            <Binding RelativeSource="{RelativeSource Self}" Path="StrokeThickness" />
+                                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource Self}" />
+                                            <Binding Path="ActualHeight" RelativeSource="{RelativeSource Self}" />
+                                            <Binding Path="StrokeThickness" RelativeSource="{RelativeSource Self}" />
                                         </MultiBinding>
                                     </Path.Data>
                                 </Path>
@@ -908,9 +929,7 @@
                                     VerticalAlignment="Center"
                                     Fill="#1A1A1A" />
                                 <!--  Inner: 文本内容（整数部分右对齐，靠近小数点）  -->
-                                <Grid
-                                    HorizontalAlignment="Center"
-                                    VerticalAlignment="Center">
+                                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="Auto" />
@@ -957,7 +976,9 @@
                         <!--  2.5) 退格次数  -->
                         <TextBlock
                             Grid.Column="2"
-                            Width="{local:TextWidth Text='退格:9999', FontSize=14, Padding=10}"
+                            Width="{local:TextWidth Text='退格:9999',
+                                                    FontSize=14,
+                                                    Padding=10}"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             FontFamily="{StaticResource MenuFontFamily}"
@@ -981,7 +1002,9 @@
                         <!--  3) 正确率: (标签 + 只显示百分比)  -->
                         <TextBlock
                             Grid.Column="3"
-                            Width="{local:TextWidth Text='正确率：99.99%', FontSize=14, Padding=10}"
+                            Width="{local:TextWidth Text='正确率：99.99%',
+                                                    FontSize=14,
+                                                    Padding=10}"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             FontFamily="{StaticResource MenuFontFamily}"
@@ -1018,7 +1041,9 @@
                         <!--  4) 速度: 显示数字并带单位 (数字与单位用不同颜色)  -->
                         <TextBlock
                             Grid.Column="4"
-                            Width="{local:TextWidth Text='速度:9999', FontSize=14, Padding=10}"
+                            Width="{local:TextWidth Text='速度:9999',
+                                                    FontSize=14,
+                                                    Padding=10}"
                             HorizontalAlignment="Center"
                             VerticalAlignment="Center"
                             FontFamily="{StaticResource MenuFontFamily}"
